@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 
@@ -20,17 +20,9 @@ import { DocumentsPage } from "@/features/documents/DocumentsPage";
 import { IssuesPage } from "@/features/issues/IssuesPage";
 import NotFound from "@/pages/NotFound";
 
-// Auth store
+// Auth store and query client
 import { useAuthStore } from "@/stores/auth";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
+import { queryClient } from "@/lib/queryClient";
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
