@@ -1,29 +1,12 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-export default defineConfig(({ mode }) => ({
-  base: mode === "development" ? "/" : "/ProList_Export/",
-  // ...rest
-}));
-
-
+// NOTE: If your Pages URL is username.github.io/ProList_Export,
+// keep '/ProList_Export/'. If you deploy to root/custom domain, use '/'.
+export default defineConfig(({ mode }) => {
+  const isDev = mode === 'development'
   return {
-    base,
-    server: {
-      host: "::",
-      port: 8080,
-      allowedHosts: [".replit.dev"],
-    },
-    preview: {
-      allowedHosts: [".replit.dev"],
-    },
-    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-    resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-      },
-    },
-  };
-});
+    base: isDev ? '/' : '/ProList_Export/',
+    plugins: [react()],
+  }
+})
