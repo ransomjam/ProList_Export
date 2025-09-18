@@ -4,20 +4,24 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: "/ProList_Export/",
-  server: {
-    host: "::",
-    port: 8080,
-    allowedHosts: [".replit.dev"],
-  },
-  preview: {
-    allowedHosts: [".replit.dev"],
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  const base = mode === "development" ? "/" : "/ProList_Export/";
+
+  return {
+    base,
+    server: {
+      host: "::",
+      port: 8080,
+      allowedHosts: [".replit.dev"],
     },
-  },
-}));
+    preview: {
+      allowedHosts: [".replit.dev"],
+    },
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});
