@@ -1,0 +1,18 @@
+{
+  "name": "ProList — Import–Export Compliance (Frontend Mock)",
+  "brand": { 
+    "primary": "#048ABF", 
+    "blue": "#049DBF", 
+    "teal": "#03A6A6", 
+    "green": "#0AA66D", 
+    "mint": "#0FBF6D" 
+  },
+  "routes": ["/", "/login", "/app", "/shipments", "/hs", "/documents", "/issues", "/reports", "/settings"],
+  "roles": ["exporter_admin","broker","finance","viewer"],
+  "currencies": ["XAF"],
+  "incoterms": ["FOB","CIF","CIP"],
+  "statuses": { 
+    "shipment": ["draft","submitted","cleared"], 
+    "doc": ["required","draft","generated","approved"] 
+  }
+}
