@@ -1,6 +1,7 @@
 // Extended types for ProList Issues and Timeline functionality
 
 import type { DocKey } from '@/utils/rules';
+import type { User } from './seeds';
 
 // Re-export existing types from seeds for convenience
 export type { User, Shipment, Product, Partner, ShipmentWithItems, ShipmentItem, ShipmentDocument, DocVersion, DocStatus, Company, HsCode, SavedHsRate } from './seeds';
@@ -89,4 +90,46 @@ export interface Event {
   at: string;
   by?: string; // user id
   payload?: Record<string, unknown>;
+}
+
+export interface OrgSettings {
+  name: string;
+  email?: string;
+  phone?: string;
+  tax_id?: string;
+  country?: string;
+  city?: string;
+  address?: string;
+  logoDataUrl?: string;
+}
+
+export interface BrandSettings {
+  primary: string;
+  accentBlue: string;
+  accentTeal: string;
+  accentGreen: string;
+  accentMint: string;
+}
+
+export type TemplateKey = DocKey;
+
+export interface TemplateMeta {
+  id: string;
+  key: TemplateKey;
+  fileName: string;
+  sizeBytes: number;
+  uploaded_at: string;
+  uploaded_by: string;
+  dataUrl: string;
+  active: boolean;
+}
+
+export type AppRole = User['role'];
+
+export interface AppUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  role: AppRole;
+  created_at: string;
 }

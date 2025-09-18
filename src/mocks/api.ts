@@ -1,17 +1,17 @@
 // Mock API with localStorage persistence and artificial latency
 
-import { 
-  seedUsers, 
-  seedShipments, 
-  seedProducts, 
-  seedPartners, 
+import {
+  seedUsers,
+  seedShipments,
+  seedProducts,
+  seedPartners,
   seedCompany,
   seedHsCodes,
-  calculateKPIs, 
-  type User, 
-  type Shipment, 
-  type KPI, 
-  type Product, 
+  calculateKPIs,
+  type User,
+  type Shipment,
+  type KPI,
+  type Product,
   type Partner,
   type ShipmentWithItems,
   type ShipmentItem,
@@ -27,17 +27,23 @@ import {
   seedIssueComments, 
   seedEvents 
 } from './issues-seeds';
-import type { 
-  Issue, 
-  IssueComment, 
-  Event, 
-  IssueStatus, 
+import type {
+  Issue,
+  IssueComment,
+  Event,
+  IssueStatus,
   IssueSeverity,
   CostLine,
   CostType,
   Payment,
   PaymentMethod,
-  CostSummary
+  CostSummary,
+  OrgSettings,
+  BrandSettings,
+  TemplateMeta,
+  TemplateKey,
+  AppUserSummary,
+  AppRole,
 } from './types';
 import { getSavedHsRate, saveHsRate as storageSaveHsRate } from '@/utils/storage';
 import { percent, roundFcfa } from '@/utils/math';
@@ -46,10 +52,28 @@ import { renderInvoicePDF, renderPackingListPDF, renderProformaPDF, renderReceip
 import { nextInvoiceNumber, nextPackingListNumber } from '@/utils/numbering';
 import { toCsv } from '@/utils/csv';
 import { formatFcfa } from '@/utils/currency';
+import { applyBrandToCssVars } from '@/utils/theme';
+import { fileToDataUrl } from '@/utils/file';
 
 const STORAGE_PREFIX = 'prolist_mvp_';
 const LATENCY_MIN = 300;
 const LATENCY_MAX = 600;
+
+const DEFAULT_ORG_SETTINGS: OrgSettings = {
+  name: 'ProList Manufacturing Ltd',
+  country: 'CM',
+  city: 'Bamenda',
+  address: 'Mile 3 Nkwen, Bamenda',
+  tax_id: 'CM-PL-009988',
+};
+
+const DEFAULT_BRAND_SETTINGS: BrandSettings = {
+  primary: '#048ABF',
+  accentBlue: '#049DBF',
+  accentTeal: '#03A6A6',
+  accentGreen: '#0AA66D',
+  accentMint: '#0FBF6D',
+};
 
 // Utility to simulate network latency
 const delay = (ms?: number): Promise<void> => {
@@ -87,7 +111,11 @@ const initializeStorage = (): void => {
     setToStorage('issues', seedIssues);
     setToStorage('issue_comments', seedIssueComments);
     setToStorage('events', seedEvents);
-    
+    setToStorage('org_settings', DEFAULT_ORG_SETTINGS);
+    setToStorage('brand_settings', DEFAULT_BRAND_SETTINGS);
+    setToStorage('templates', []);
+    applyBrandToCssVars(DEFAULT_BRAND_SETTINGS);
+
     // Initialize cost lines and payments with seed data
     const seedCostLines: CostLine[] = [
       {
@@ -149,6 +177,20 @@ const initializeStorage = (): void => {
 // Call initialization
 initializeStorage();
 
+const ensureStored = <T>(key: string, fallback: T): T => {
+  const storageKey = getStorageKey(key);
+  const raw = localStorage.getItem(storageKey);
+  if (!raw) {
+    setToStorage(key, fallback);
+    return fallback;
+  }
+  return getFromStorage<T>(key, fallback);
+};
+
+const getOrgSettingsFromStorage = (): OrgSettings => ensureStored('org_settings', DEFAULT_ORG_SETTINGS);
+const getBrandSettingsFromStorage = (): BrandSettings => ensureStored('brand_settings', DEFAULT_BRAND_SETTINGS);
+const getTemplatesFromStorage = (): TemplateMeta[] => ensureStored<TemplateMeta[]>('templates', []);
+
 // Mock API functions
 export const mockApi = {
   // Authentication
@@ -157,7 +199,7 @@ export const mockApi = {
     
     const users = getFromStorage<User[]>('users', seedUsers);
     let user = users.find(u => u.email === email);
-    
+
     // If user not found but email provided, create a demo user
     if (!user && email) {
       user = {
@@ -165,13 +207,23 @@ export const mockApi = {
         email,
         name: email.split('@')[0],
         role: (role as User['role']) || 'exporter_admin',
+        created_at: new Date().toISOString(),
       };
       users.push(user);
       setToStorage('users', users);
     }
-    
+
     if (!user) {
       throw new Error('Invalid credentials');
+    }
+
+    if (!user.created_at) {
+      user.created_at = new Date().toISOString();
+      const index = users.findIndex(u => u.id === user.id);
+      if (index >= 0) {
+        users[index] = user;
+        setToStorage('users', users);
+      }
     }
 
     const token = `demo_token_${user.id}_${Date.now()}`;
@@ -190,6 +242,205 @@ export const mockApi = {
     await delay(200);
     localStorage.removeItem(getStorageKey('current_user'));
     localStorage.removeItem(getStorageKey('auth_token'));
+  },
+
+  // Settings - Organisation
+  async getOrgSettings(): Promise<OrgSettings> {
+    await delay();
+    return getOrgSettingsFromStorage();
+  },
+
+  async saveOrgSettings(patch: Partial<OrgSettings>): Promise<OrgSettings> {
+    await delay();
+    const current = getOrgSettingsFromStorage();
+    const updated = { ...current, ...patch };
+    setToStorage('org_settings', updated);
+    return updated;
+  },
+
+  // Settings - Branding
+  async getBrandSettings(): Promise<BrandSettings> {
+    await delay();
+    return getBrandSettingsFromStorage();
+  },
+
+  async saveBrandSettings(patch: Partial<BrandSettings>): Promise<BrandSettings> {
+    await delay();
+    const current = getBrandSettingsFromStorage();
+    const updated: BrandSettings = {
+      ...current,
+      ...patch,
+    };
+    setToStorage('brand_settings', updated);
+    applyBrandToCssVars(updated);
+    return updated;
+  },
+
+  async resetBrandSettings(): Promise<BrandSettings> {
+    await delay();
+    setToStorage('brand_settings', DEFAULT_BRAND_SETTINGS);
+    applyBrandToCssVars(DEFAULT_BRAND_SETTINGS);
+    return DEFAULT_BRAND_SETTINGS;
+  },
+
+  // Settings - Templates
+  async listTemplates(): Promise<TemplateMeta[]> {
+    await delay();
+    const templates = getTemplatesFromStorage();
+    return templates.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
+  },
+
+  async uploadTemplate({ key, file }: { key: TemplateKey; file: File }): Promise<TemplateMeta> {
+    await delay();
+    const templates = getTemplatesFromStorage();
+    const dataUrl = await fileToDataUrl(file);
+    const uploader = getFromStorage<User | null>('current_user', null);
+    const newTemplate: TemplateMeta = {
+      id: `tpl_${Date.now()}`,
+      key,
+      fileName: file.name,
+      sizeBytes: file.size,
+      uploaded_at: new Date().toISOString(),
+      uploaded_by: uploader?.id ?? 'system',
+      dataUrl,
+      active: false,
+    };
+
+    templates.push(newTemplate);
+    setToStorage('templates', templates);
+    return newTemplate;
+  },
+
+  async setActiveTemplate(id: string): Promise<TemplateMeta[]> {
+    await delay();
+    const templates = getTemplatesFromStorage();
+    const target = templates.find(t => t.id === id);
+    if (!target) {
+      return templates;
+    }
+
+    const updated = templates.map(template =>
+      template.key === target.key
+        ? { ...template, active: template.id === id }
+        : template
+    );
+
+    setToStorage('templates', updated);
+    return updated;
+  },
+
+  async deleteTemplate(id: string): Promise<void> {
+    await delay();
+    const templates = getTemplatesFromStorage();
+    const filtered = templates.filter(template => template.id !== id);
+    setToStorage('templates', filtered);
+  },
+
+  // Settings - Users & roles
+  async listUsers(): Promise<AppUserSummary[]> {
+    await delay();
+    const users = getFromStorage<User[]>('users', seedUsers);
+    let mutated = false;
+    const normalised = users.map(user => {
+      if (!user.created_at) {
+        mutated = true;
+        return { ...user, created_at: new Date().toISOString() } as User;
+      }
+      return user;
+    });
+
+    if (mutated) {
+      setToStorage('users', normalised);
+    }
+
+    return normalised.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      created_at: user.created_at,
+    }));
+  },
+
+  async updateUserRole(userId: string, role: AppRole): Promise<AppUserSummary> {
+    await delay();
+    const users = getFromStorage<User[]>('users', seedUsers);
+    const index = users.findIndex(user => user.id === userId);
+    if (index === -1) {
+      throw new Error('User not found');
+    }
+
+    users[index] = { ...users[index], role };
+    setToStorage('users', users);
+
+    const currentUser = getFromStorage<User | null>('current_user', null);
+    if (currentUser && currentUser.id === userId) {
+      const updatedUser = { ...currentUser, role };
+      setToStorage('current_user', updatedUser);
+    }
+
+    const updated = users[index];
+    return {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      created_at: updated.created_at,
+    };
+  },
+
+  // Settings - Workspace
+  async exportWorkspace(): Promise<{ fileName: string; dataUrl: string }> {
+    await delay();
+    const data: Record<string, unknown> = {};
+    Object.keys(localStorage)
+      .filter(key => key.startsWith(STORAGE_PREFIX))
+      .forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          try {
+            data[key] = JSON.parse(value);
+          } catch {
+            data[key] = value;
+          }
+        }
+      });
+
+    const payload = JSON.stringify(data, null, 2);
+    const encoded = window.btoa(unescape(encodeURIComponent(payload)));
+    const fileName = `${new Date().toISOString().replace(/[:.]/g, '-')}-prolist-workspace.json`;
+    return {
+      fileName,
+      dataUrl: `data:application/json;base64,${encoded}`,
+    };
+  },
+
+  async importWorkspace(file: File): Promise<void> {
+    await delay();
+    const text = await file.text();
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new Error('Invalid workspace file');
+    }
+
+    const keys = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_PREFIX));
+    keys.forEach(key => localStorage.removeItem(key));
+
+    Object.entries(parsed).forEach(([key, value]) => {
+      if (typeof key === 'string' && key.startsWith(STORAGE_PREFIX)) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    });
+
+    setToStorage('initialized', true);
+
+    if (!Object.prototype.hasOwnProperty.call(parsed, getStorageKey('brand_settings'))) {
+      setToStorage('brand_settings', DEFAULT_BRAND_SETTINGS);
+    }
+
+    applyBrandToCssVars(getBrandSettingsFromStorage());
   },
 
   // Shipments
@@ -225,15 +476,22 @@ export const mockApi = {
   // Demo utilities
   async resetDemo(): Promise<void> {
     await delay();
-    
+
     // Clear all ProList data
     const keys = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_PREFIX));
     keys.forEach(key => localStorage.removeItem(key));
-    
+
     // Reinitialize
     initializeStorage();
-    
+    applyBrandToCssVars(DEFAULT_BRAND_SETTINGS);
+
     console.log('ProList: Demo data reset');
+  },
+
+  clearStorage(): void {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_PREFIX));
+    keys.forEach(key => localStorage.removeItem(key));
+    applyBrandToCssVars(DEFAULT_BRAND_SETTINGS);
   },
 
   // Create shipment
@@ -365,7 +623,7 @@ export const mockApi = {
     if (!shipment) return [];
     
     const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-    let shipmentDocs = allDocs.filter(doc => doc.shipment_id === shipmentId);
+    const shipmentDocs = allDocs.filter(doc => doc.shipment_id === shipmentId);
     
     // Evaluate rules to ensure required documents exist
     const requirements = evaluateRules(shipment, products);

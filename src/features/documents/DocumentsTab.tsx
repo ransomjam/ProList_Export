@@ -1,6 +1,6 @@
 // Documents tab component for shipment detail page
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,7 @@ import { toast } from 'sonner';
 import { mockApi } from '@/mocks/api';
 import { evaluateRules } from '@/utils/rules';
 import type { ShipmentWithItems, Product, ShipmentDocument, DocVersion, DocStatus } from '@/mocks/seeds';
+import type { TemplateMeta } from '@/mocks/types';
 import type { DocKey } from '@/utils/rules';
 
 interface DocumentsTabProps {
@@ -110,6 +111,10 @@ const getDocumentName = (docKey: DocKey): string => {
       return 'Commercial Invoice';
     case 'PACKING_LIST':
       return 'Packing List';
+    case 'BILL_OF_LADING':
+      return 'Bill of Lading';
+    case 'CUSTOMS_EXPORT_DECLARATION':
+      return 'Customs Export Declaration';
     default:
       return docKey;
   }
@@ -126,6 +131,10 @@ const getIssuedBy = (docKey: DocKey): string => {
     case 'INVOICE':
     case 'PACKING_LIST':
       return 'ProList Manufacturing';
+    case 'BILL_OF_LADING':
+      return 'Carrier or shipping line';
+    case 'CUSTOMS_EXPORT_DECLARATION':
+      return 'Customs authority';
     default:
       return 'External Authority';
   }
@@ -155,6 +164,17 @@ export const DocumentsTab = ({ shipment, products }: DocumentsTabProps) => {
     queryKey: ['shipment-documents', shipment.id],
     queryFn: () => mockApi.listShipmentDocuments(shipment.id),
   });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['templates'],
+    queryFn: () => mockApi.listTemplates(),
+  });
+
+  const activeTemplates = useMemo(() => {
+    const map = new Map<DocKey, TemplateMeta>();
+    templates.filter(template => template.active).forEach(template => map.set(template.key, template));
+    return map;
+  }, [templates]);
 
   // Generate document mutation
   const generateMutation = useMutation({
@@ -341,6 +361,8 @@ export const DocumentsTab = ({ shipment, products }: DocumentsTabProps) => {
                       ? doc.versions.find(v => v.version === doc.current_version)
                       : null;
                     
+                    const customTemplate = activeTemplates.get(doc.doc_key);
+
                     return (
                       <TableRow key={doc.id}>
                         <TableCell>
@@ -352,6 +374,14 @@ export const DocumentsTab = ({ shipment, products }: DocumentsTabProps) => {
                                 <p className="text-xs text-muted-foreground">
                                   v{currentVersion.version} • {currentVersion.fileName}
                                 </p>
+                              )}
+                              {customTemplate && (
+                                <Badge
+                                  variant="outline"
+                                  className="mt-1 inline-flex items-center gap-1 border-[color:var(--brand-primary)] bg-[var(--brand-primary)]/10 text-[color:var(--brand-primary)]"
+                                >
+                                  Custom template: <span className="font-medium">{customTemplate.fileName}</span>
+                                </Badge>
                               )}
                             </div>
                           </div>

@@ -1,6 +1,6 @@
 // Global Documents index page with search and filter
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Download, Eye, Search, Filter } from 'lucide-react';
 import { mockApi } from '@/mocks/api';
 import type { ShipmentDocument, DocStatus } from '@/mocks/seeds';
+import type { TemplateMeta } from '@/mocks/types';
 import type { DocKey } from '@/utils/rules';
 
 const getStatusVariant = (status: DocStatus) => {
@@ -58,6 +59,10 @@ const getDocumentName = (docKey: DocKey): string => {
       return 'Commercial Invoice';
     case 'PACKING_LIST':
       return 'Packing List';
+    case 'BILL_OF_LADING':
+      return 'Bill of Lading';
+    case 'CUSTOMS_EXPORT_DECLARATION':
+      return 'Customs Export Declaration';
     default:
       return docKey;
   }
@@ -78,6 +83,17 @@ export const DocumentsPage = () => {
     queryKey: ['shipments'],
     queryFn: () => mockApi.listShipments(),
   });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['templates'],
+    queryFn: () => mockApi.listTemplates(),
+  });
+
+  const activeTemplates = useMemo(() => {
+    const map = new Map<DocKey, TemplateMeta>();
+    templates.filter(template => template.active).forEach(template => map.set(template.key, template));
+    return map;
+  }, [templates]);
 
   // Filter documents
   const filteredDocuments = documents.filter(doc => {
@@ -246,8 +262,10 @@ export const DocumentsPage = () => {
                       ? doc.versions.find(v => v.version === doc.current_version)
                       : null;
                     
+                    const customTemplate = activeTemplates.get(doc.doc_key);
+
                     return (
-                      <TableRow 
+                      <TableRow
                         key={doc.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => handleRowClick(doc)}
@@ -258,7 +276,18 @@ export const DocumentsPage = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            {getDocumentName(doc.doc_key)}
+                            <div className="flex flex-col gap-1">
+                              <span>{getDocumentName(doc.doc_key)}</span>
+                              {customTemplate && (
+                                <Badge
+                                  variant="outline"
+                                  className="inline-flex w-fit items-center gap-1 border-[color:var(--brand-primary)] bg-[var(--brand-primary)]/10 text-[color:var(--brand-primary)]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Custom template: <span className="font-medium">{customTemplate.fileName}</span>
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>

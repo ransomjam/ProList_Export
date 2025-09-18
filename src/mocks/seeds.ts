@@ -7,6 +7,7 @@ export interface User {
   email: string;
   name: string;
   role: 'exporter_admin' | 'broker' | 'finance' | 'viewer';
+  created_at: string;
 }
 
 export interface Shipment {
@@ -96,23 +97,26 @@ export interface ShipmentWithItems extends Shipment {
 
 // Seed users
 export const seedUsers: User[] = [
-  { 
-    id: 'u_1', 
-    email: 'jam@prolist.example', 
-    name: 'Jam Ransom', 
-    role: 'exporter_admin' 
+  {
+    id: 'u_1',
+    email: 'jam@prolist.example',
+    name: 'Jam Ransom',
+    role: 'exporter_admin',
+    created_at: '2025-01-04T08:30:00.000Z'
   },
-  { 
-    id: 'u_2', 
-    email: 'broker@prolist.example', 
-    name: 'Alex Broker', 
-    role: 'broker' 
+  {
+    id: 'u_2',
+    email: 'broker@prolist.example',
+    name: 'Alex Broker',
+    role: 'broker',
+    created_at: '2025-02-18T10:15:00.000Z'
   },
-  { 
-    id: 'u_3', 
-    email: 'finance@prolist.example', 
-    name: 'Sam Finance', 
-    role: 'finance' 
+  {
+    id: 'u_3',
+    email: 'finance@prolist.example',
+    name: 'Sam Finance',
+    role: 'finance',
+    created_at: '2025-03-02T14:45:00.000Z'
   },
 ];
 

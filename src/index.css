@@ -20,12 +20,19 @@ All colors MUST be HSL. Brand palette: primary(#048ABF), blue(#049DBF), teal(#03
     --popover-foreground: 210 15% 12%;
 
     /* Brand Primary - ProList Blue #048ABF */
+    --brand-primary: #048abf;
+    --brand-primary-hover: hsl(199 95% 32%);
+    --brand-primary-contrast: #ffffff;
     --primary: 199 95% 38%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 199 95% 32%;
     --primary-light: 199 95% 95%;
 
     /* Brand Accents */
+    --brand-blue: #049dbf;
+    --brand-teal: #03a6a6;
+    --brand-green: #0aa66d;
+    --brand-mint: #0fbf6d;
     --accent-blue: 195 95% 40%;
     --accent-teal: 180 95% 33%;
     --accent-green: 150 85% 35%;
@@ -88,12 +95,19 @@ All colors MUST be HSL. Brand palette: primary(#048ABF), blue(#049DBF), teal(#03
     --popover-foreground: 210 10% 95%;
 
     /* Brand Primary - Lighter in dark mode */
+    --brand-primary: #048abf;
+    --brand-primary-hover: hsl(199 95% 60%);
+    --brand-primary-contrast: #ffffff;
     --primary: 199 95% 55%;
     --primary-foreground: 210 25% 8%;
     --primary-hover: 199 95% 60%;
     --primary-light: 199 95% 15%;
 
     /* Brand Accents - Adjusted for dark mode */
+    --brand-blue: #049dbf;
+    --brand-teal: #03a6a6;
+    --brand-green: #0aa66d;
+    --brand-mint: #0fbf6d;
     --accent-blue: 195 95% 55%;
     --accent-teal: 180 95% 45%;
     --accent-green: 150 85% 50%;

@@ -43,6 +43,8 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import { NavLink } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useQuery } from '@tanstack/react-query';
+import { mockApi } from '@/mocks/api';
 
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
@@ -51,14 +53,18 @@ const sidebarItems = [
   { title: 'Documents', url: '/documents', icon: FileText, disabled: true },
   { title: 'Issues', url: '/issues', icon: AlertTriangle, disabled: true },
   { title: 'Reports', url: '/reports', icon: BarChart3, disabled: true },
-  { title: 'Settings', url: '/settings', icon: Settings, disabled: true },
+  { title: 'Settings', url: '/settings', icon: Settings, disabled: false },
 ];
 
 const AppSidebar = () => {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === 'collapsed';
-  
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings'],
+    queryFn: () => mockApi.getOrgSettings(),
+  });
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -66,7 +72,7 @@ const AppSidebar = () => {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            ProList
+            {orgSettings?.name ?? 'ProList'}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -114,6 +120,10 @@ export const AppShell = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings'],
+    queryFn: () => mockApi.getOrgSettings(),
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -135,7 +145,19 @@ export const AppShell = () => {
           <header className="h-14 flex items-center justify-between px-4 border-b border-border bg-background/95 backdrop-blur-sm">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
-              
+              <div className="flex min-w-0 items-center gap-3">
+                {orgSettings?.logoDataUrl && (
+                  <img
+                    src={orgSettings.logoDataUrl}
+                    alt={`${orgSettings.name ?? 'Organisation'} logo`}
+                    className="h-8 w-8 rounded-xl object-contain"
+                  />
+                )}
+                <span className="max-w-[200px] truncate text-lg font-semibold text-foreground">
+                  {orgSettings?.name ?? 'ProList'}
+                </span>
+              </div>
+
               {/* Search */}
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
