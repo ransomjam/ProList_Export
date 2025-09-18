@@ -2,7 +2,14 @@
 
 import type { ShipmentWithItems, Product } from '@/mocks/seeds';
 
-export type DocKey = 'COO' | 'PHYTO' | 'INSURANCE' | 'INVOICE' | 'PACKING_LIST';
+export type DocKey =
+  | 'COO'
+  | 'PHYTO'
+  | 'INSURANCE'
+  | 'INVOICE'
+  | 'PACKING_LIST'
+  | 'BILL_OF_LADING'
+  | 'CUSTOMS_EXPORT_DECLARATION';
 
 export interface DocumentRequirement {
   required: DocKey[];
