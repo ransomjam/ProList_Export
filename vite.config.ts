@@ -14,5 +14,9 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    server: {
+      allowedHosts: [/\.janeway\.replit\.dev$/],
+      host: '0.0.0.0',
+    },
   }
 })
