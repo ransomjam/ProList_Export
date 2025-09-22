@@ -200,51 +200,6 @@ const getNotificationsFromStorage = (): NotificationItem[] => ensureStored('noti
 const getNotificationPreferencesFromStorage = (): NotificationPreferences =>
   ensureStored('notification_preferences', defaultNotificationPreferences);
 
-const generateId = (prefix: string): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10_000)}`;
-};
-
-const buildCompanyProfile = (): Company => {
-  const org = getOrgSettingsFromStorage();
-  const addressParts = [org.address, org.city, org.country].filter(Boolean).join(', ');
-  return {
-    name: org.name,
-    address: addressParts || seedCompany.address,
-    tin: org.tax_id || seedCompany.tin,
-  };
-};
-
-const ensureShipmentDocumentCatalogue = (
-  shipment: ShipmentWithItems,
-  products: Product[],
-  allDocs: ShipmentDocument[]
-): { docs: ShipmentDocument[]; mutated: boolean } => {
-  const shipmentDocs = allDocs.filter(doc => doc.shipment_id === shipment.id);
-  const requirements = evaluateRules(shipment, products);
-  const catalogueKeys = new Set<DocKey>([...requirements.required, 'INVOICE', 'PACKING_LIST']);
-  let mutated = false;
-
-  catalogueKeys.forEach(docKey => {
-    if (!shipmentDocs.some(doc => doc.doc_key === docKey)) {
-      const newDoc: ShipmentDocument = {
-        id: generateId(`doc_${docKey.toLowerCase()}`),
-        shipment_id: shipment.id,
-        doc_key: docKey,
-        status: 'required',
-        versions: [],
-      };
-      shipmentDocs.push(newDoc);
-      allDocs.push(newDoc);
-      mutated = true;
-    }
-  });
-
-  return { docs: shipmentDocs, mutated };
-};
-
 // Mock API functions
 export const mockApi = {
   // Authentication
@@ -669,126 +624,151 @@ export const mockApi = {
   // Documents API
   async listShipmentDocuments(shipmentId: string): Promise<ShipmentDocument[]> {
     await delay();
-
-    const shipments = getFromStorage<ShipmentWithItems[]>('shipments', []);
-    const shipment = shipments.find(s => s.id === shipmentId);
-    if (!shipment) {
-      return [];
-    }
-
+    
+    const shipment = getFromStorage<ShipmentWithItems[]>('shipments', [])
+      .find(s => s.id === shipmentId);
     const products = getFromStorage<Product[]>('products', seedProducts);
+    
+    if (!shipment) return [];
+    
     const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-    const { docs, mutated } = ensureShipmentDocumentCatalogue(shipment, products, allDocs);
-
-    if (mutated) {
-      setToStorage('documents', allDocs);
+    const shipmentDocs = allDocs.filter(doc => doc.shipment_id === shipmentId);
+    
+    // Evaluate rules to ensure required documents exist
+    const requirements = evaluateRules(shipment, products);
+    
+    // Ensure each required document exists in the catalogue
+    for (const docKey of requirements.required) {
+      const existing = shipmentDocs.find(doc => doc.doc_key === docKey);
+      if (!existing) {
+        const newDoc: ShipmentDocument = {
+          id: `doc_${Date.now()}_${docKey}`,
+          shipment_id: shipmentId,
+          doc_key: docKey,
+          status: 'required',
+          versions: [],
+        };
+        shipmentDocs.push(newDoc);
+        allDocs.push(newDoc);
+      }
     }
-
-    return [...docs].sort((a, b) => a.doc_key.localeCompare(b.doc_key));
+    
+    // Add commercial documents (Invoice, Packing List) if not present
+    const commercialDocs: DocKey[] = ['INVOICE' as DocKey, 'PACKING_LIST' as DocKey];
+    for (const docKey of commercialDocs) {
+      const existing = shipmentDocs.find(doc => doc.doc_key === docKey);
+      if (!existing) {
+        const newDoc: ShipmentDocument = {
+          id: `doc_${Date.now()}_${docKey}`,
+          shipment_id: shipmentId,
+          doc_key: docKey,
+          status: 'required',
+          versions: [],
+        };
+        shipmentDocs.push(newDoc);
+        allDocs.push(newDoc);
+      }
+    }
+    
+    setToStorage('documents', allDocs);
+    return shipmentDocs;
   },
 
   async generateDocument(
-    shipmentId: string,
-    docKey: DocKey,
+    shipmentId: string, 
+    docKey: DocKey, 
     payload: { number?: string; date: string; signatureName?: string }
   ): Promise<ShipmentDocument> {
     await delay();
-
+    
     const shipments = getFromStorage<ShipmentWithItems[]>('shipments', []);
     const products = getFromStorage<Product[]>('products', seedProducts);
     const partners = getFromStorage<Partner[]>('partners', seedPartners);
     const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-
+    
     const shipment = shipments.find(s => s.id === shipmentId);
     if (!shipment) throw new Error('Shipment not found');
-
+    
     const buyer = partners.find(p => p.name === shipment.buyer);
     if (!buyer) throw new Error('Buyer not found');
-    const company = buildCompanyProfile();
-
-    const { docs: shipmentDocs } = ensureShipmentDocumentCatalogue(shipment, products, allDocs);
-    let doc = shipmentDocs.find(d => d.doc_key === docKey);
-
+    
+    // Prepare items data
+    const items = (shipment.items || []).map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      if (!product) throw new Error('Product not found');
+      return { product, quantity: item.quantity };
+    });
+    
+    // Calculate totals
+    const totals = items.reduce((acc, item) => {
+      acc.value += item.product.unit_price_fcfa * item.quantity;
+      acc.weight += (item.product.weight_kg || 0) * item.quantity;
+      acc.items += 1;
+      return acc;
+    }, { value: 0, weight: 0, items: 0 });
+    
+    // Generate document number if not provided
+    let documentNumber = payload.number;
+    if (!documentNumber) {
+      documentNumber = docKey === 'INVOICE' ? nextInvoiceNumber() : nextPackingListNumber();
+    }
+    
+    const meta = {
+      number: documentNumber,
+      date: payload.date,
+      signatureName: payload.signatureName,
+    };
+    
+    // Generate PDF
+    let pdfResult;
+    if (docKey === 'INVOICE') {
+      pdfResult = await renderInvoicePDF(shipment, seedCompany, buyer, items, totals, meta);
+    } else if (docKey === 'PACKING_LIST') {
+      pdfResult = await renderPackingListPDF(shipment, seedCompany, buyer, items, totals, meta);
+    } else {
+      throw new Error('Document generation not supported for this type');
+    }
+    
+    // Find or create document
+    let doc = allDocs.find(d => d.shipment_id === shipmentId && d.doc_key === docKey);
     if (!doc) {
       doc = {
-        id: generateId(`doc_${docKey.toLowerCase()}`),
+        id: `doc_${Date.now()}_${docKey}`,
         shipment_id: shipmentId,
         doc_key: docKey,
         status: 'required',
         versions: [],
       };
       allDocs.push(doc);
-      shipmentDocs.push(doc);
     }
-
-    const items = (shipment.items || []).map(item => {
-      const product = products.find(p => p.id === item.product_id);
-      if (!product) throw new Error('Product not found');
-      return { product, quantity: item.quantity };
-    });
-
-    const totals = items.reduce(
-      (acc, { product, quantity }) => {
-        const lineValue = product.unit_price_fcfa * quantity;
-        const netWeight = (product.weight_kg || 0) * quantity;
-        const grossWeight = netWeight * 1.02;
-        return {
-          value: acc.value + lineValue,
-          netWeight: acc.netWeight + netWeight,
-          grossWeight: acc.grossWeight + grossWeight,
-          packages: acc.packages + 1,
-        };
-      },
-      { value: 0, netWeight: 0, grossWeight: 0, packages: 0 }
-    );
-
-    let documentNumber = payload.number?.trim();
-    if (!documentNumber) {
-      documentNumber = docKey === 'INVOICE' ? nextInvoiceNumber() : nextPackingListNumber();
-    }
-
-    const versionNumber = (doc.versions.length || 0) + 1;
-    const meta = {
-      number: documentNumber,
-      date: payload.date,
-      signatureName: payload.signatureName,
-      version: versionNumber,
-    };
-
-    let pdfResult;
-    if (docKey === 'INVOICE') {
-      pdfResult = await renderInvoicePDF(shipment, company, buyer, items, totals, meta);
-    } else if (docKey === 'PACKING_LIST') {
-      pdfResult = await renderPackingListPDF(shipment, company, buyer, items, totals, meta);
-    } else {
-      throw new Error('Document generation not supported for this type');
-    }
-
+    
+    // Create new version
     const newVersion: DocVersion = {
-      id: generateId('ver'),
-      version: versionNumber,
+      id: `ver_${Date.now()}`,
+      version: (doc.versions.length || 0) + 1,
       created_at: new Date().toISOString(),
-      created_by: 'current_user',
+      created_by: 'current_user', // In real app, get from auth
       fileDataUrl: pdfResult.dataUrl,
       fileName: pdfResult.fileName,
-      note: payload.signatureName ? `Signed by ${payload.signatureName}` : `Generated ${docKey}`,
+      note: `Generated ${docKey}`,
     };
-
+    
     doc.versions.push(newVersion);
-    doc.current_version = versionNumber;
+    doc.current_version = newVersion.version;
     doc.status = 'generated';
-
+    
     setToStorage('documents', allDocs);
-
+    
+    // Add doc generated event
     await this.addEvent({
-      id: generateId('event'),
+      id: `event_${Date.now()}`,
       shipment_id: shipmentId,
       type: 'doc_generated',
       at: new Date().toISOString(),
       by: 'current_user',
-      payload: { doc_key: docKey, version: versionNumber },
+      payload: { doc_key: docKey, version: newVersion.version },
     });
-
+    
     return doc;
   },
 
@@ -799,21 +779,13 @@ export const mockApi = {
     note?: string
   ): Promise<ShipmentDocument> {
     await delay();
-
-    const shipments = getFromStorage<ShipmentWithItems[]>('shipments', []);
-    const shipment = shipments.find(s => s.id === shipmentId);
-    if (!shipment) {
-      throw new Error('Shipment not found');
-    }
-
-    const products = getFromStorage<Product[]>('products', seedProducts);
+    
     const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-    const { docs: shipmentDocs } = ensureShipmentDocumentCatalogue(shipment, products, allDocs);
-    let doc = shipmentDocs.find(d => d.doc_key === docKey);
-
+    let doc = allDocs.find(d => d.shipment_id === shipmentId && d.doc_key === docKey);
+    
     if (!doc) {
       doc = {
-        id: generateId(`doc_${docKey.toLowerCase()}`),
+        id: `doc_${Date.now()}_${docKey}`,
         shipment_id: shipmentId,
         doc_key: docKey,
         status: 'required',
@@ -821,25 +793,31 @@ export const mockApi = {
       };
       allDocs.push(doc);
     }
-
-    const dataUrl = await fileToDataUrl(file);
-    const versionNumber = (doc.versions.length || 0) + 1;
-    const newVersion: DocVersion = {
-      id: generateId('ver'),
-      version: versionNumber,
-      created_at: new Date().toISOString(),
-      created_by: 'current_user',
-      fileDataUrl: dataUrl,
-      fileName: file.name,
-      note: note || `Uploaded ${file.name}`,
-    };
-
-    doc.versions.push(newVersion);
-    doc.current_version = versionNumber;
-    doc.status = 'generated';
-
-    setToStorage('documents', allDocs);
-    return doc;
+    
+    // Convert file to data URL
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const newVersion: DocVersion = {
+          id: `ver_${Date.now()}`,
+          version: (doc!.versions.length || 0) + 1,
+          created_at: new Date().toISOString(),
+          created_by: 'current_user',
+          fileDataUrl: reader.result as string,
+          fileName: file.name,
+          note: note || `Uploaded ${file.name}`,
+        };
+        
+        doc!.versions.push(newVersion);
+        doc!.current_version = newVersion.version;
+        doc!.status = 'generated';
+        
+        setToStorage('documents', allDocs);
+        resolve(doc!);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
   },
 
   async setDocumentStatus(
@@ -849,14 +827,14 @@ export const mockApi = {
     note?: string
   ): Promise<ShipmentDocument> {
     await delay();
-
+    
     const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
     const doc = allDocs.find(d => d.shipment_id === shipmentId && d.doc_key === docKey);
-
+    
     if (!doc) throw new Error('Document not found');
-
+    
     doc.status = status;
-
+    
     // Add note to current version if provided
     if (note && doc.current_version) {
       const currentVersion = doc.versions.find(v => v.version === doc.current_version);
@@ -864,9 +842,9 @@ export const mockApi = {
         currentVersion.note = note;
       }
     }
-
+    
     setToStorage('documents', allDocs);
-
+    
     // Add doc approved event
     if (status === 'approved') {
       await this.addEvent({
@@ -878,58 +856,19 @@ export const mockApi = {
         payload: { doc_key: docKey, version: doc.current_version },
       });
     }
-
-    return doc;
-  },
-
-  async setDocumentCurrentVersion(
-    shipmentId: string,
-    docKey: DocKey,
-    version: number
-  ): Promise<ShipmentDocument> {
-    await delay();
-
-    const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-    const doc = allDocs.find(d => d.shipment_id === shipmentId && d.doc_key === docKey);
-    if (!doc) throw new Error('Document not found');
-
-    const targetVersion = doc.versions.find(v => v.version === version);
-    if (!targetVersion) throw new Error('Version not found');
-
-    doc.current_version = version;
-    setToStorage('documents', allDocs);
+    
     return doc;
   },
 
   async listAllDocuments(): Promise<ShipmentDocument[]> {
     await delay();
-    const shipments = getFromStorage<ShipmentWithItems[]>('shipments', []);
-    const products = getFromStorage<Product[]>('products', seedProducts);
-    const allDocs = getFromStorage<ShipmentDocument[]>('documents', []);
-    let mutated = false;
-
-    shipments.forEach(shipment => {
-      const { mutated: shipmentMutated } = ensureShipmentDocumentCatalogue(shipment, products, allDocs);
-      mutated = mutated || shipmentMutated;
-    });
-
-    if (mutated) {
-      setToStorage('documents', allDocs);
-    }
-
-    return [...allDocs].sort((a, b) => {
-      const aVersion = a.current_version ? a.versions.find(v => v.version === a.current_version) : undefined;
-      const bVersion = b.current_version ? b.versions.find(v => v.version === b.current_version) : undefined;
-      const aTime = aVersion ? new Date(aVersion.created_at).getTime() : 0;
-      const bTime = bVersion ? new Date(bVersion.created_at).getTime() : 0;
-      return bTime - aTime;
-    });
+    return getFromStorage<ShipmentDocument[]>('documents', []);
   },
 
   // Get company info
   async getCompany(): Promise<Company> {
     await delay();
-    return buildCompanyProfile();
+    return seedCompany;
   },
 
   // HS Codes API

@@ -1,7 +1,7 @@
 // Shipment detail page with tabs and overview
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,14 +49,14 @@ import {
 import { toast } from 'sonner';
 import { mockApi } from '@/mocks/api';
 import { formatFcfa } from '@/utils/currency';
-import { evaluateRules, type DocKey } from '@/utils/rules';
+import { evaluateRules } from '@/utils/rules';
 import { DocumentsTab } from '@/features/documents/DocumentsTab';
 import { IssuesTab } from '@/features/issues/components/IssuesTab';
 import { TimelineTab } from '@/features/issues/components/TimelineTab';
 import { CostsTab } from '@/features/costs/CostsTab';
 import { HsQuickPicker } from '@/features/hs/components/HsQuickPicker';
 import { isPhytoHs } from '@/utils/hs';
-import type { ShipmentWithItems, Product, ShipmentDocument, DocStatus } from '@/mocks/seeds';
+import type { ShipmentWithItems, Product } from '@/mocks/seeds';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -82,41 +82,6 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const docStatusVariant = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'default';
-    case 'generated':
-    case 'draft':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-};
-
-const docStatusLabel = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'Approved';
-    case 'generated':
-      return 'Ready';
-    case 'draft':
-      return 'Draft';
-    default:
-      return 'Required';
-  }
-};
-
-const documentNameMap: Record<DocKey, string> = {
-  INVOICE: 'Commercial Invoice',
-  PACKING_LIST: 'Packing List',
-  COO: 'Certificate of Origin',
-  PHYTO: 'Phytosanitary Certificate',
-  INSURANCE: 'Insurance Certificate',
-  BILL_OF_LADING: 'Bill of Lading',
-  CUSTOMS_EXPORT_DECLARATION: 'Customs Export Declaration',
-};
-
 const ComingSoonTab = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
     <div className="rounded-full bg-muted p-4 mb-4">
@@ -134,9 +99,7 @@ export const ShipmentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam ?? 'overview');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isHsPickerOpen, setIsHsPickerOpen] = useState(false);
 
   const { data: shipment, isLoading, error } = useQuery({
@@ -149,54 +112,6 @@ export const ShipmentDetailPage = () => {
     queryKey: ['products'],
     queryFn: mockApi.listProducts,
   });
-
-  const { data: documents = [] } = useQuery({
-    queryKey: ['shipment-documents', id],
-    queryFn: async () => {
-      if (!id) return [] as ShipmentDocument[];
-      return mockApi.listShipmentDocuments(id);
-    },
-    enabled: !!id,
-  });
-
-  const documentRequirements = useMemo(() => {
-    if (!shipment) {
-      return { required: [] as DocKey[], reasons: {} as Partial<Record<DocKey, string>> };
-    }
-    return evaluateRules(shipment, products);
-  }, [shipment, products]);
-
-  const documentChecklist = useMemo(
-    () => {
-      const combined: DocKey[] = ['INVOICE', 'PACKING_LIST', ...documentRequirements.required];
-      const unique: DocKey[] = [];
-      combined.forEach(key => {
-        if (!unique.includes(key)) unique.push(key);
-      });
-      return unique.map(key => ({
-        key,
-        status: documents.find(doc => doc.doc_key === key)?.status ?? 'required',
-        reason: documentRequirements.reasons[key],
-      }));
-    },
-    [documents, documentRequirements]
-  );
-
-  useEffect(() => {
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTab(tabParam);
-    }
-  }, [tabParam, activeTab]);
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', value);
-    if (value !== 'documents') {
-      next.delete('highlight');
-    }
-    setSearchParams(next, { replace: true });
-  };
 
   // Update shipment mutation
   const updateShipmentMutation = useMutation({
@@ -319,6 +234,9 @@ export const ShipmentDetailPage = () => {
     }
     return acc;
   }, { value: 0, weight: 0, items: 0 });
+
+  // Evaluate document requirements
+  const documentRequirements = evaluateRules(shipment, products);
 
   return (
     <div className="space-y-6">
@@ -451,7 +369,7 @@ export const ShipmentDetailPage = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -529,30 +447,37 @@ export const ShipmentDetailPage = () => {
               <CardTitle>Required Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              {documentChecklist.length > 0 ? (
+              {documentRequirements.required.length > 0 ? (
                 <div className="space-y-3">
-                  {documentChecklist.map(item => (
-                    <div key={item.key} className="flex items-center justify-between rounded-xl border p-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-foreground">
-                          {documentNameMap[item.key] ?? item.key}
-                        </span>
-                        {item.reason && (
-                          <span className="text-sm text-muted-foreground">{item.reason}</span>
-                        )}
+                  {documentRequirements.required.map((docKey) => (
+                    <div key={docKey} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-orange-100 p-2">
+                          <FileText className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {docKey === 'COO' && 'Certificate of Origin'}
+                            {docKey === 'PHYTO' && 'Phytosanitary Certificate'}
+                            {docKey === 'INSURANCE' && 'Insurance Certificate'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {documentRequirements.reasons[docKey]}
+                          </p>
+                        </div>
                       </div>
-                      <Badge variant={docStatusVariant(item.status)} className="capitalize">
-                        {docStatusLabel(item.status)}
+                      <Badge variant="outline" className="text-orange-600 border-orange-600">
+                        Required
                       </Badge>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 p-4">
+                <div className="text-center py-8">
+                  <div className="rounded-full bg-green-100 p-4 w-16 h-16 mx-auto mb-4">
                     <CheckCircle className="h-8 w-8 text-green-600" />
                   </div>
-                  <h3 className="text-lg font-medium">No special documents required</h3>
+                  <h3 className="text-lg font-medium mb-2">No Special Documents Required</h3>
                   <p className="text-muted-foreground">
                     Based on the destination and products, no additional compliance documents are required.
                   </p>

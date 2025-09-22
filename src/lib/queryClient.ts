@@ -11,13 +11,14 @@ export const queryClient = new QueryClient({
 });
 
 // Default fetcher function for queries that don't need custom fetching logic
-export const defaultQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }): Promise<never> => {
-  throw new Error(`Query must provide a queryFn (missing for key: ${JSON.stringify(queryKey)})`);
+export const defaultQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }): Promise<any> => {
+  // Since this app uses mockApi, we don't need a default fetcher
+  throw new Error('Query must provide a queryFn');
 };
 
 // API request function for mutations
-export const apiRequest = async (url: string, options: RequestInit = {}): Promise<never> => {
-  void url;
-  void options;
+export const apiRequest = async (url: string, options: RequestInit = {}): Promise<any> => {
+  // Since this app uses mockApi, we don't need a real API request function
+  // This is here to match the development guidelines expectations
   throw new Error('Use mockApi functions directly instead of apiRequest');
 };
