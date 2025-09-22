@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -34,7 +34,6 @@ import {
   ArrowLeft,
   Plus,
   Edit,
-  Send,
   Trash2,
   Package,
   Users,
@@ -55,8 +54,9 @@ import { IssuesTab } from '@/features/issues/components/IssuesTab';
 import { TimelineTab } from '@/features/issues/components/TimelineTab';
 import { CostsTab } from '@/features/costs/CostsTab';
 import { HsQuickPicker } from '@/features/hs/components/HsQuickPicker';
-import { isPhytoHs } from '@/utils/hs';
 import type { ShipmentWithItems, Product, ShipmentDocument, DocStatus } from '@/mocks/seeds';
+import { seedUsers } from '@/mocks/seeds';
+import { SubmissionReadinessCard, type ReadinessChecklistItem } from '@/features/shipments/SubmissionReadinessCard';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -102,6 +102,8 @@ const docStatusLabel = (status: DocStatus) => {
       return 'Ready';
     case 'draft':
       return 'Draft';
+    case 'rejected':
+      return 'Needs update';
     default:
       return 'Required';
   }
@@ -115,6 +117,41 @@ const documentNameMap: Record<DocKey, string> = {
   INSURANCE: 'Insurance Certificate',
   BILL_OF_LADING: 'Bill of Lading',
   CUSTOMS_EXPORT_DECLARATION: 'Customs Export Declaration',
+};
+
+const ensureSentence = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+const missingDocCopy = (
+  docKey: DocKey,
+  shipment?: ShipmentWithItems,
+  fallback?: string
+): string => {
+  switch (docKey) {
+    case 'INVOICE':
+      return 'Commercial Invoice missing — generate it in Documents';
+    case 'PACKING_LIST':
+      return 'Packing List missing — upload the signed version';
+    case 'PHYTO':
+      return 'Phytosanitary certificate required (cocoa/coffee)';
+    case 'COO':
+      return shipment?.route
+        ? `Certificate of Origin required for ${shipment.route}`
+        : 'Certificate of Origin required for this destination';
+    case 'INSURANCE':
+      return shipment?.incoterm
+        ? `Insurance certificate required for ${shipment.incoterm} terms`
+        : 'Insurance certificate required for these terms';
+    case 'BILL_OF_LADING':
+      return 'Bill of Lading not yet uploaded';
+    case 'CUSTOMS_EXPORT_DECLARATION':
+      return 'Customs export declaration pending completion';
+    default:
+      return fallback || `${documentNameMap[docKey] ?? docKey} missing`;
+  }
 };
 
 const ComingSoonTab = ({ title }: { title: string }) => (
@@ -137,6 +174,8 @@ export const ShipmentDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam ?? 'overview');
+  const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [isHsPickerOpen, setIsHsPickerOpen] = useState(false);
 
   const { data: shipment, isLoading, error } = useQuery({
@@ -150,13 +189,30 @@ export const ShipmentDetailPage = () => {
     queryFn: mockApi.listProducts,
   });
 
-  const { data: documents = [] } = useQuery({
+  const { data: documents = [], isLoading: isLoadingDocuments } = useQuery({
     queryKey: ['shipment-documents', id],
     queryFn: async () => {
       if (!id) return [] as ShipmentDocument[];
       return mockApi.listShipmentDocuments(id);
     },
     enabled: !!id,
+  });
+
+  const { data: issues = [], isLoading: isLoadingIssues } = useQuery({
+    queryKey: ['issues', 'shipment', id],
+    queryFn: () => mockApi.listIssues({ shipment_id: id! }),
+    enabled: !!id,
+  });
+
+  const { data: costSummary, isLoading: isLoadingCosts } = useQuery({
+    queryKey: ['costSummary', id],
+    queryFn: () => mockApi.getCostSummary(id!),
+    enabled: !!id,
+  });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: mockApi.getCurrentUser,
   });
 
   const documentRequirements = useMemo(() => {
@@ -173,11 +229,15 @@ export const ShipmentDetailPage = () => {
       combined.forEach(key => {
         if (!unique.includes(key)) unique.push(key);
       });
-      return unique.map(key => ({
-        key,
-        status: documents.find(doc => doc.doc_key === key)?.status ?? 'required',
-        reason: documentRequirements.reasons[key],
-      }));
+      return unique.map(key => {
+        const doc = documents.find(document => document.doc_key === key);
+        return {
+          key,
+          status: doc?.status ?? 'required',
+          reason: documentRequirements.reasons[key],
+          doc,
+        };
+      });
     },
     [documents, documentRequirements]
   );
@@ -202,10 +262,20 @@ export const ShipmentDetailPage = () => {
   const updateShipmentMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ShipmentWithItems> }) =>
       mockApi.updateShipment(id, updates),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['shipment', id] });
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
-      toast.success('Shipment updated successfully');
+      const statusUpdate = variables?.updates?.status;
+
+      if (statusUpdate === 'submitted') {
+        toast.success('Shipment submitted successfully');
+        setIsSubmitDialogOpen(false);
+      } else if (statusUpdate === 'draft') {
+        toast.success('Shipment reopened for edits');
+        setIsReopenDialogOpen(false);
+      } else {
+        toast.success('Shipment updated successfully');
+      }
     },
     onError: () => {
       toast.error('Failed to update shipment');
@@ -225,12 +295,24 @@ export const ShipmentDetailPage = () => {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmitConfirm = () => {
     if (!shipment) return;
     updateShipmentMutation.mutate({
       id: shipment.id,
       updates: { status: 'submitted' },
     });
+  };
+
+  const handleReopenConfirm = () => {
+    if (!shipment) return;
+    updateShipmentMutation.mutate({
+      id: shipment.id,
+      updates: { status: 'draft', submitted_at: null, submitted_by: null },
+    });
+  };
+
+  const handleDownloadSubmissionPack = () => {
+    toast.info('Submission pack download coming soon in this demo.');
   };
 
   const handleDelete = () => {
@@ -320,8 +402,190 @@ export const ShipmentDetailPage = () => {
     return acc;
   }, { value: 0, weight: 0, items: 0 });
 
+  const goToDocuments = () => handleTabChange('documents');
+  const goToIssues = () => handleTabChange('issues');
+  const goToCosts = () => handleTabChange('costs');
+
+  const documentStatusSummaries = documentChecklist.map(item => {
+    const docName = documentNameMap[item.key] ?? item.key;
+    const doc = item.doc;
+    const versions = doc?.versions ?? [];
+    const currentVersion = doc?.current_version
+      ? versions.find(version => version.version === doc.current_version) ?? null
+      : versions[versions.length - 1] ?? null;
+    const versionLabel = currentVersion?.version ? ` (v${currentVersion.version})` : '';
+    const note = currentVersion?.note;
+
+    switch (item.status) {
+      case 'approved':
+        return {
+          key: item.key,
+          ready: true,
+          text: ensureSentence(
+            `${docName} approved${versionLabel}${note ? ` — ${note}` : ''}`
+          ),
+        };
+      case 'generated':
+        return {
+          key: item.key,
+          ready: true,
+          text: ensureSentence(
+            `${docName} generated${versionLabel}${note ? ` — ${note}` : ''}`
+          ),
+        };
+      case 'draft':
+        return {
+          key: item.key,
+          ready: false,
+          text: ensureSentence(`${docName} still in draft — approve before submission`),
+        };
+      case 'rejected':
+        return {
+          key: item.key,
+          ready: false,
+          text: ensureSentence(`${docName} rejected — upload a corrected version`),
+        };
+      default:
+        return {
+          key: item.key,
+          ready: ['generated', 'approved'].includes(item.status),
+          text: ensureSentence(missingDocCopy(item.key, shipment, item.reason)),
+        };
+    }
+  });
+
+  const missingDocSummaries = documentStatusSummaries.filter(summary => !summary.ready);
+  const readyDocSummaries = documentStatusSummaries.filter(summary => summary.ready);
+
+  let documentsDetail: string | undefined;
+  if (isLoadingDocuments) {
+    documentsDetail = 'Checking latest documents…';
+  } else if (missingDocSummaries.length > 0) {
+    const [first, ...rest] = missingDocSummaries;
+    documentsDetail = rest.length > 0 ? `${first.text} + ${rest.length} more.` : first.text;
+  } else if (readyDocSummaries.length > 0) {
+    const readyPreview = readyDocSummaries
+      .slice(0, 2)
+      .map(summary => summary.text.replace(/\.$/, ''));
+    documentsDetail = readyPreview.join(' • ');
+  }
+
+  const documentsReady =
+    !isLoadingDocuments && missingDocSummaries.length === 0 && documentChecklist.length > 0;
+  const documentsStatus: ReadinessChecklistItem = {
+    id: 'documents',
+    title: 'Required documents',
+    status: isLoadingDocuments ? 'loading' : documentsReady ? 'ready' : 'blocked',
+    statusLabel: isLoadingDocuments
+      ? 'Checking…'
+      : documentsReady
+        ? 'Ready'
+        : missingDocSummaries.length > 1
+          ? `${missingDocSummaries.length} missing`
+          : 'Missing',
+    detail: documentsDetail,
+    actionLabel: documentsReady ? 'View documents' : 'Go to Documents',
+    onAction: goToDocuments,
+  };
+
+  const openIssues = issues.filter(
+    issue => issue.status === 'open' || issue.status === 'in_progress'
+  );
+  const openIssuesCount = openIssues.length;
+  const issuesDetail = isLoadingIssues
+    ? 'Checking issues…'
+    : openIssuesCount === 0
+      ? 'No open issues right now.'
+      : `${openIssuesCount === 1 ? '1 issue still open' : `${openIssuesCount} issues open`} — “${openIssues[0].title}”.`;
+  const issuesStatus: ReadinessChecklistItem = {
+    id: 'issues',
+    title: 'Issues',
+    status: isLoadingIssues ? 'loading' : openIssuesCount === 0 ? 'ready' : 'attention',
+    statusLabel: isLoadingIssues
+      ? 'Checking…'
+      : openIssuesCount === 0
+        ? 'Clear'
+        : `${openIssuesCount} open`,
+    detail: issuesDetail,
+    actionLabel: openIssuesCount > 0 ? 'Open issues' : 'View issues',
+    onAction: goToIssues,
+  };
+
+  const balanceFcfa = costSummary?.balance_fcfa ?? 0;
+  const costsDetail = isLoadingCosts
+    ? 'Loading latest balance…'
+    : balanceFcfa <= 0
+      ? balanceFcfa < 0
+        ? `Overpaid by ${formatFcfa(Math.abs(balanceFcfa))}.`
+        : 'Balance cleared — ready to submit.'
+      : `Balance due ${formatFcfa(balanceFcfa)}. Record payment before submission.`;
+  const costsStatus: ReadinessChecklistItem = {
+    id: 'costs',
+    title: 'Costs & payments',
+    status: isLoadingCosts ? 'loading' : balanceFcfa <= 0 ? 'ready' : 'attention',
+    statusLabel: isLoadingCosts
+      ? 'Checking…'
+      : balanceFcfa <= 0
+        ? balanceFcfa < 0
+          ? 'Overpaid'
+          : 'Clear'
+        : `Due ${formatFcfa(balanceFcfa)}`,
+    detail: costsDetail,
+    actionLabel: 'Review costs',
+    onAction: goToCosts,
+  };
+
+  const readinessItems: ReadinessChecklistItem[] = [
+    documentsStatus,
+    issuesStatus,
+    costsStatus,
+  ];
+  const isReadyForSubmission = readinessItems.every(item => item.status === 'ready');
+  const isSubmitted = shipment.status !== 'draft';
+
+  const fallbackUserName = currentUser?.name ?? seedUsers[0]?.name ?? 'Jam Ransom';
+  const submittedByName = isSubmitted
+    ? shipment.submitted_by
+      ? seedUsers.find(user => user.id === shipment.submitted_by)?.name ??
+        (currentUser &&
+        (shipment.submitted_by === currentUser.id || shipment.submitted_by === 'current_user')
+          ? currentUser.name
+          : fallbackUserName)
+      : fallbackUserName
+    : undefined;
+  const submittedDateText = shipment.submitted_at
+    ? formatDate(shipment.submitted_at)
+    : formatDate(shipment.updated_at);
+
+  const readyDocListForDialog = (readyDocSummaries.length > 0
+    ? readyDocSummaries
+    : documentStatusSummaries
+  ).map(summary => summary.text.replace(/\.$/, ''));
+  const issuesDialogSummary = isLoadingIssues
+    ? 'Checking…'
+    : openIssuesCount === 0
+      ? 'None open'
+      : `${openIssuesCount} open`;
+  const balanceDialogSummary = costSummary
+    ? `${formatFcfa(costSummary.balance_fcfa)}${costSummary.balance_fcfa > 0 ? ' — resolve before submission.' : ''}`
+    : '0 FCFA';
+
+  const openSubmitDialog = () => setIsSubmitDialogOpen(true);
+  const openReopenDialog = () => setIsReopenDialogOpen(true);
+
   return (
     <div className="space-y-6">
+      {shipment.status === 'submitted' && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-700">Submitted</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Submitted on {submittedDateText}
+            {submittedByName ? ` by ${submittedByName}` : ''}.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex items-center gap-4">
@@ -350,17 +614,6 @@ export const ShipmentDetailPage = () => {
             Edit
           </Button>
           
-          {shipment.status === 'draft' && (
-            <Button 
-              size="sm" 
-              onClick={handleSubmit}
-              disabled={updateShipmentMutation.isPending}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Submit
-            </Button>
-          )}
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm">
@@ -389,6 +642,19 @@ export const ShipmentDetailPage = () => {
           </AlertDialog>
         </div>
       </div>
+
+      <SubmissionReadinessCard
+        isReady={isReadyForSubmission}
+        items={readinessItems}
+        onSubmit={!isSubmitted ? openSubmitDialog : undefined}
+        isSubmitting={updateShipmentMutation.isPending}
+        isSubmitted={isSubmitted}
+        submittedAt={shipment.submitted_at}
+        submittedByName={submittedByName}
+        onReopen={shipment.status === 'submitted' ? openReopenDialog : undefined}
+        isReopening={shipment.status === 'submitted' ? updateShipmentMutation.isPending : false}
+        onDownloadPack={isSubmitted ? handleDownloadSubmissionPack : undefined}
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -531,21 +797,43 @@ export const ShipmentDetailPage = () => {
             <CardContent>
               {documentChecklist.length > 0 ? (
                 <div className="space-y-3">
-                  {documentChecklist.map(item => (
-                    <div key={item.key} className="flex items-center justify-between rounded-xl border p-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-foreground">
-                          {documentNameMap[item.key] ?? item.key}
-                        </span>
-                        {item.reason && (
-                          <span className="text-sm text-muted-foreground">{item.reason}</span>
-                        )}
+                  {documentChecklist.map(item => {
+                    const versions = item.doc?.versions ?? [];
+                    const currentVersion = item.doc?.current_version
+                      ? versions.find(version => version.version === item.doc?.current_version) ?? null
+                      : versions[versions.length - 1] ?? null;
+
+                    const helperText = (() => {
+                      if (item.status === 'approved' || item.status === 'generated') {
+                        if (currentVersion?.note) return currentVersion.note;
+                        if (currentVersion?.fileName) return `Latest file: ${currentVersion.fileName}`;
+                        return 'Ready for submission';
+                      }
+                      if (item.status === 'draft') {
+                        return 'Draft version saved — approve when ready.';
+                      }
+                      if (item.status === 'rejected') {
+                        return 'Rejected — upload a corrected version.';
+                      }
+                      return item.reason ?? missingDocCopy(item.key, shipment);
+                    })();
+
+                    return (
+                      <div key={item.key} className="flex items-center justify-between rounded-xl border p-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium text-foreground">
+                            {documentNameMap[item.key] ?? item.key}
+                          </span>
+                          {helperText && (
+                            <span className="text-sm text-muted-foreground">{helperText}</span>
+                          )}
+                        </div>
+                        <Badge variant={docStatusVariant(item.status)} className="capitalize">
+                          {docStatusLabel(item.status)}
+                        </Badge>
                       </div>
-                      <Badge variant={docStatusVariant(item.status)} className="capitalize">
-                        {docStatusLabel(item.status)}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-8 text-center">
@@ -578,6 +866,60 @@ export const ShipmentDetailPage = () => {
           <TimelineTab shipment={shipment} />
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit shipment</AlertDialogTitle>
+            <AlertDialogDescription>
+              We'll lock editable fields and mark this shipment as Submitted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Docs included</h4>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                {readyDocListForDialog.map(line => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid gap-1 text-sm text-muted-foreground">
+              <span>Issues: {issuesDialogSummary}</span>
+              <span>Balance: {balanceDialogSummary}</span>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateShipmentMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmitConfirm}
+              disabled={!isReadyForSubmission || updateShipmentMutation.isPending}
+            >
+              {updateShipmentMutation.isPending ? 'Submitting…' : 'Submit shipment'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isReopenDialogOpen} onOpenChange={setIsReopenDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reopen for edits</AlertDialogTitle>
+            <AlertDialogDescription>
+              Reopening changes status to Draft. Make sure you notify your team if documents changed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateShipmentMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReopenConfirm}
+              disabled={updateShipmentMutation.isPending}
+            >
+              {updateShipmentMutation.isPending ? 'Reopening…' : 'Reopen shipment'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* HS Quick Picker */}
       <HsQuickPicker
