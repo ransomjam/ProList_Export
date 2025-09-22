@@ -133,3 +133,47 @@ export interface AppUserSummary {
   role: AppRole;
   created_at: string;
 }
+
+export type NotificationType = "documents" | "issues" | "shipments" | "payments" | "system";
+
+export type NotificationDigestFrequency = "daily" | "weekly" | "off";
+
+export interface NotificationDigestEntry {
+  type: NotificationType;
+  label: string;
+  value: string;
+}
+
+export interface NotificationMetadata {
+  shipmentId?: string;
+  reference?: string;
+  docKey?: DocKey;
+  docName?: string;
+  issueId?: string;
+  severity?: IssueSeverity;
+  paymentAmount?: string;
+  paymentMethod?: PaymentMethod;
+  digestBreakdown?: NotificationDigestEntry[];
+}
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  context: string;
+  occurredAt: string;
+  unread: boolean;
+  isDigest?: boolean;
+  metadata?: NotificationMetadata;
+}
+
+export interface NotificationPreferences {
+  enabled: Record<NotificationType, boolean>;
+  highPriority: NotificationType[];
+  digest: NotificationDigestFrequency;
+  quietHours: {
+    enabled: boolean;
+    start: string;
+    end: string;
+  };
+}
