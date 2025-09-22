@@ -25,6 +25,7 @@ import {
   Search,
   Filter,
   Calendar as CalendarIcon,
+  ChevronDown,
 } from 'lucide-react';
 import {
   ToggleGroup,
@@ -123,6 +124,7 @@ export const DocumentsPage = () => {
   const [selectedDocTypes, setSelectedDocTypes] = useState<DocKey[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DocStatus[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['all-documents'],
@@ -203,6 +205,17 @@ export const DocumentsPage = () => {
     setDateRange(undefined);
   };
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm.trim()) count += 1;
+    if (selectedDocTypes.length > 0) count += 1;
+    if (selectedStatuses.length > 0) count += 1;
+    if (dateRange?.from || dateRange?.to) count += 1;
+    return count;
+  }, [searchTerm, selectedDocTypes, selectedStatuses, dateRange]);
+
+  const hasActiveFilters = activeFilterCount > 0;
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -226,95 +239,134 @@ export const DocumentsPage = () => {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" /> Filters
+            {hasActiveFilters ? (
+              <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">
+                {activeFilterCount} active
+              </Badge>
+            ) : null}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Search shipments</p>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by reference…"
-                  value={searchTerm}
-                  onChange={event => setSearchTerm(event.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Document types</p>
-              <ToggleGroup
-                type="multiple"
-                value={selectedDocTypes}
-                onValueChange={value => setSelectedDocTypes((value as DocKey[]) ?? [])}
-                className="flex flex-wrap gap-2"
-              >
-                {docTypeOptions.map(option => (
-                  <ToggleGroupItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-full px-3 py-1 text-xs data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
-                  >
-                    {option.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Status</p>
-              <ToggleGroup
-                type="multiple"
-                value={selectedStatuses}
-                onValueChange={value => setSelectedStatuses((value as DocStatus[]) ?? [])}
-                className="flex flex-wrap gap-2"
-              >
-                {statusOptions.map(option => (
-                  <ToggleGroupItem
-                    key={option.value}
-                    value={option.value}
-                    className="rounded-full px-3 py-1 text-xs capitalize data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
-                  >
-                    {option.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Updated</p>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between text-left">
-                    <span>{formatRangeLabel(dateRange)}</span>
-                    <CalendarIcon className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-3" align="start">
-                  <Calendar
-                    mode="range"
-                    numberOfMonths={2}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    weekStartsOn={1}
-                  />
-                  <div className="mt-3 flex justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
-                      Clear
-                    </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between sm:w-auto">
+                  <span>Filter documents</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[320px] p-0 sm:w-[520px]" align="start">
+                <div className="grid gap-6 p-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Search shipments</p>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by reference…"
+                        value={searchTerm}
+                        onChange={event => setSearchTerm(event.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Document types</p>
+                    <ToggleGroup
+                      type="multiple"
+                      value={selectedDocTypes}
+                      onValueChange={value => setSelectedDocTypes((value as DocKey[]) ?? [])}
+                      className="flex flex-wrap gap-2"
+                    >
+                      {docTypeOptions.map(option => (
+                        <ToggleGroupItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded-full px-3 py-1 text-xs data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                        >
+                          {option.label}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Status</p>
+                    <ToggleGroup
+                      type="multiple"
+                      value={selectedStatuses}
+                      onValueChange={value => setSelectedStatuses((value as DocStatus[]) ?? [])}
+                      className="flex flex-wrap gap-2"
+                    >
+                      {statusOptions.map(option => (
+                        <ToggleGroupItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded-full px-3 py-1 text-xs capitalize data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                        >
+                          {option.label}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Updated</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between text-left">
+                          <span>{formatRangeLabel(dateRange)}</span>
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-3" align="start">
+                        <Calendar
+                          mode="range"
+                          numberOfMonths={2}
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          weekStartsOn={1}
+                        />
+                        <div className="mt-3 flex justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+                            Clear
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between border-t bg-muted/50 px-4 py-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      resetFilters();
+                      setIsFiltersOpen(false);
+                    }}
+                    disabled={!hasActiveFilters}
+                  >
+                    Reset filters
+                  </Button>
+                  <Button size="sm" onClick={() => setIsFiltersOpen(false)}>
+                    Done
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:self-end"
+              onClick={() => {
+                resetFilters();
+                setIsFiltersOpen(false);
+              }}
+              disabled={!hasActiveFilters}
+            >
               Reset filters
             </Button>
           </div>
