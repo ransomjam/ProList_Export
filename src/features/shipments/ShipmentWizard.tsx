@@ -77,6 +77,8 @@ type ItemsForm = z.infer<typeof itemsSchema>;
 
 interface WizardData extends BasicsForm, PartiesForm, ItemsForm {}
 
+type WizardItem = ItemsForm['items'][number];
+
 const COUNTRIES = [
   { code: 'FR', name: 'France' },
   { code: 'DE', name: 'Germany' }, 
@@ -347,16 +349,16 @@ export const ShipmentWizard = () => {
 
   // Step 3: Items
   const ItemsStep = () => {
-    const [items, setItems] = useState(wizardData.items || [{ product_id: '', quantity: 1 }]);
+    const [items, setItems] = useState<WizardItem[]>(wizardData.items ?? [{ product_id: '', quantity: 1 }]);
     const [isHsPickerOpen, setIsHsPickerOpen] = useState(false);
 
     const addItem = () => {
-      setItems([...items, { product_id: '', quantity: 1 }]);
+      setItems(prevItems => [...prevItems, { product_id: '', quantity: 1 }]);
     };
 
     const addAdHocProduct = (product: Product) => {
       // Add the new product to the items list with quantity 1
-      const newItem = { product_id: product.id, quantity: 1 };
+      const newItem: WizardItem = { product_id: product.id, quantity: 1 };
       setItems(prevItems => [...prevItems, newItem]);
     };
 
@@ -364,10 +366,12 @@ export const ShipmentWizard = () => {
       setItems(items.filter((_, i) => i !== index));
     };
 
-    const updateItem = (index: number, field: keyof typeof itemSchema.shape, value: any) => {
-      const updated = [...items];
-      updated[index] = { ...updated[index], [field]: value };
-      setItems(updated);
+    const updateItem = <K extends keyof WizardItem>(index: number, field: K, value: WizardItem[K]) => {
+      setItems(prevItems => {
+        const updated = [...prevItems];
+        updated[index] = { ...updated[index], [field]: value };
+        return updated;
+      });
     };
 
     const handleNext = () => {
