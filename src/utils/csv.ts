@@ -1,12 +1,12 @@
 // CSV generation utilities
 
-export const toCsv = (rows: Record<string, any>[]): string => {
+export const toCsv = <T extends Record<string, unknown>>(rows: T[]): string => {
   if (rows.length === 0) return '';
-  
-  const headers = Object.keys(rows[0]);
-  const csvHeaders = headers.map(header => `"${header}"`).join(',');
-  
-  const csvRows = rows.map(row => 
+
+  const headers = Object.keys(rows[0]) as Array<keyof T>;
+  const csvHeaders = headers.map(header => `"${String(header)}"`).join(',');
+
+  const csvRows = rows.map(row =>
     headers.map(header => {
       const value = row[header];
       if (value === null || value === undefined) return '""';

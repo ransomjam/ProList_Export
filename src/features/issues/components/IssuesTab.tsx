@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import { mockApi } from '@/mocks/api';
 import { seedUsers } from '@/mocks/seeds';
 import type { Issue, IssueStatus, IssueSeverity, ShipmentWithItems, ShipmentDocument } from '@/mocks/types';
+import type { DocKey } from '@/utils/rules';
 import { IssueDrawer } from './IssueDrawer';
 
 interface IssuesTabProps {
@@ -64,7 +65,7 @@ export const IssuesTab = ({ shipment, documents = [] }: IssuesTabProps) => {
   const [isNewIssueOpen, setIsNewIssueOpen] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState('');
   const [newIssueSeverity, setNewIssueSeverity] = useState<IssueSeverity>('medium');
-  const [newIssueDocKey, setNewIssueDocKey] = useState('none');
+  const [newIssueDocKey, setNewIssueDocKey] = useState<'none' | DocKey>('none');
   const [newIssueAssignee, setNewIssueAssignee] = useState('unassigned');
   const queryClient = useQueryClient();
 
@@ -112,7 +113,7 @@ export const IssuesTab = ({ shipment, documents = [] }: IssuesTabProps) => {
       title: newIssueTitle,
       shipment_id: shipment.id,
       severity: newIssueSeverity,
-      doc_key: newIssueDocKey === 'none' ? undefined : newIssueDocKey as any || undefined,
+      doc_key: newIssueDocKey === 'none' ? undefined : newIssueDocKey,
       assignee_id: newIssueAssignee === 'unassigned' ? undefined : newIssueAssignee || undefined,
     });
   };
@@ -229,22 +230,25 @@ export const IssuesTab = ({ shipment, documents = [] }: IssuesTabProps) => {
               </div>
 
               {documents.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="document">Related Document (Optional)</Label>
-                <Select value={newIssueDocKey} onValueChange={setNewIssueDocKey}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select document" />
-                  </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="none">No document</SelectItem>
-                     {documents.map((doc) => (
-                       <SelectItem key={doc.id} value={doc.doc_key}>
-                        {doc.doc_key}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="document">Related Document (Optional)</Label>
+                  <Select
+                    value={newIssueDocKey}
+                    onValueChange={(value) => setNewIssueDocKey(value as 'none' | DocKey)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No document</SelectItem>
+                      {documents.map(doc => (
+                        <SelectItem key={doc.id} value={doc.doc_key}>
+                          {doc.doc_key}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
 

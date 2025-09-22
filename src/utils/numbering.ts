@@ -6,32 +6,48 @@ const getStorageKey = (key: string): string => `${STORAGE_PREFIX}${key}`;
 
 const getCurrentYear = (): string => new Date().getFullYear().toString();
 
-const getNextNumber = (type: 'invoice' | 'packing_list'): string => {
+const getStoredCounter = (type: 'invoice' | 'packing_list'): number => {
   const year = getCurrentYear();
   const key = `${type}_counter_${year}`;
-  
+  const stored = localStorage.getItem(getStorageKey(key));
+  return stored ? parseInt(stored, 10) : 0;
+};
+
+const persistCounter = (type: 'invoice' | 'packing_list', value: number): void => {
+  const year = getCurrentYear();
+  const key = `${type}_counter_${year}`;
+  localStorage.setItem(getStorageKey(key), value.toString());
+};
+
+const formatNumber = (prefix: string, sequence: number): string => {
+  const year = getCurrentYear();
+  return `${prefix}-${year}-${sequence.toString().padStart(4, '0')}`;
+};
+
+const getNextNumber = (type: 'invoice' | 'packing_list', prefix: string): string => {
   try {
-    const stored = localStorage.getItem(getStorageKey(key));
-    const current = stored ? parseInt(stored, 10) : 0;
+    const current = getStoredCounter(type);
     const next = current + 1;
-    
-    localStorage.setItem(getStorageKey(key), next.toString());
-    
-    return next.toString().padStart(4, '0');
+    persistCounter(type, next);
+    return formatNumber(prefix, next);
   } catch (error) {
     console.error('Failed to generate document number:', error);
-    return '0001';
+    return `${prefix}-${getCurrentYear()}-0001`;
   }
 };
 
-export const nextInvoiceNumber = (): string => {
-  const year = getCurrentYear();
-  const number = getNextNumber('invoice');
-  return `INV-${year}-${number}`;
+const peekNextNumber = (type: 'invoice' | 'packing_list', prefix: string): string => {
+  try {
+    const current = getStoredCounter(type);
+    return formatNumber(prefix, current + 1);
+  } catch (error) {
+    console.error('Failed to preview document number:', error);
+    return `${prefix}-${getCurrentYear()}-0001`;
+  }
 };
 
-export const nextPackingListNumber = (): string => {
-  const year = getCurrentYear(); 
-  const number = getNextNumber('packing_list');
-  return `PKL-${year}-${number}`;
-};
+export const nextInvoiceNumber = (): string => getNextNumber('invoice', 'INV');
+export const nextPackingListNumber = (): string => getNextNumber('packing_list', 'PKL');
+
+export const previewInvoiceNumber = (): string => peekNextNumber('invoice', 'INV');
+export const previewPackingListNumber = (): string => peekNextNumber('packing_list', 'PKL');
