@@ -10,7 +10,7 @@ import { LandingPage } from "@/features/landing/LandingPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { AppShell } from "@/components/layout/AppShell";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
-import { ComingSoonPage } from "@/features/placeholders/ComingSoonPage";
+import { ReportsPage } from "@/features/reports/ReportsPage";
 import { HsCodesPage } from "@/features/hs/HsCodesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { ShipmentsListPage } from "@/features/shipments/ShipmentsListPage";
@@ -104,7 +104,7 @@ const App = () => {
                 <AppShell />
               </ProtectedRoute>
             }>
-              <Route index element={<ComingSoonPage />} />
+              <Route index element={<ReportsPage />} />
             </Route>
             
             <Route path="/settings" element={

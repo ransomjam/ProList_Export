@@ -52,7 +52,7 @@ const sidebarItems = [
   { title: 'HS Codes', url: '/hs', icon: Hash, disabled: false },
   { title: 'Documents', url: '/documents', icon: FileText, disabled: true },
   { title: 'Issues', url: '/issues', icon: AlertTriangle, disabled: true },
-  { title: 'Reports', url: '/reports', icon: BarChart3, disabled: true },
+  { title: 'Reports', url: '/reports', icon: BarChart3, disabled: false },
   { title: 'Settings', url: '/settings', icon: Settings, disabled: false },
 ];
 
