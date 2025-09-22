@@ -22,11 +22,12 @@ import {
   type HsCode,
   type SavedHsRate
 } from './seeds';
-import { 
-  seedIssues, 
-  seedIssueComments, 
-  seedEvents 
+import {
+  seedIssues,
+  seedIssueComments,
+  seedEvents
 } from './issues-seeds';
+import { seedNotifications, defaultNotificationPreferences } from './notifications-seeds';
 import type {
   Issue,
   IssueComment,
@@ -44,6 +45,9 @@ import type {
   TemplateKey,
   AppUserSummary,
   AppRole,
+  NotificationItem,
+  NotificationPreferences,
+  NotificationType,
 } from './types';
 import { getSavedHsRate, saveHsRate as storageSaveHsRate } from '@/utils/storage';
 import { percent, roundFcfa } from '@/utils/math';
@@ -111,6 +115,8 @@ const initializeStorage = (): void => {
     setToStorage('issues', seedIssues);
     setToStorage('issue_comments', seedIssueComments);
     setToStorage('events', seedEvents);
+    setToStorage('notifications', seedNotifications);
+    setToStorage('notification_preferences', defaultNotificationPreferences);
     setToStorage('org_settings', DEFAULT_ORG_SETTINGS);
     setToStorage('brand_settings', DEFAULT_BRAND_SETTINGS);
     setToStorage('templates', []);
@@ -190,6 +196,9 @@ const ensureStored = <T>(key: string, fallback: T): T => {
 const getOrgSettingsFromStorage = (): OrgSettings => ensureStored('org_settings', DEFAULT_ORG_SETTINGS);
 const getBrandSettingsFromStorage = (): BrandSettings => ensureStored('brand_settings', DEFAULT_BRAND_SETTINGS);
 const getTemplatesFromStorage = (): TemplateMeta[] => ensureStored<TemplateMeta[]>('templates', []);
+const getNotificationsFromStorage = (): NotificationItem[] => ensureStored('notifications', seedNotifications);
+const getNotificationPreferencesFromStorage = (): NotificationPreferences =>
+  ensureStored('notification_preferences', defaultNotificationPreferences);
 
 // Mock API functions
 export const mockApi = {
@@ -1318,7 +1327,7 @@ export const mockApi = {
   // Export CSV
   async exportCostsCsv(shipmentId: string): Promise<{ fileName: string; dataUrl: string }> {
     await delay();
-    
+
     const costLines = await this.listCostLines(shipmentId);
     const csvData = costLines.map(line => ({
       'Type': line.type,
@@ -1330,14 +1339,95 @@ export const mockApi = {
       'Created': new Date(line.created_at).toLocaleDateString('en-GB'),
       'Updated': new Date(line.updated_at).toLocaleDateString('en-GB'),
     }));
-    
+
     const csvContent = toCsv(csvData);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const dataUrl = URL.createObjectURL(blob);
-    
+
     return {
       fileName: `costs_${shipmentId}_${new Date().toISOString().split('T')[0]}.csv`,
       dataUrl,
     };
+  },
+
+  async getNotifications(): Promise<NotificationItem[]> {
+    await delay(200);
+
+    const notifications = getNotificationsFromStorage();
+    const preferences = getNotificationPreferencesFromStorage();
+
+    const enabledTypes = (Object.entries(preferences.enabled) as Array<[
+      NotificationType,
+      boolean
+    ]>)
+      .filter(([, enabled]) => enabled)
+      .map(([type]) => type);
+
+    return notifications
+      .filter(notification => {
+        if (notification.isDigest) {
+          return preferences.digest !== 'off';
+        }
+
+        return enabledTypes.includes(notification.type);
+      })
+      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+  },
+
+  async markNotificationRead(id: string, read = true): Promise<void> {
+    await delay(120);
+
+    const notifications = getNotificationsFromStorage();
+    const updated = notifications.map(notification =>
+      notification.id === id ? { ...notification, unread: !read ? true : false } : notification,
+    );
+
+    setToStorage('notifications', updated);
+  },
+
+  async markAllNotificationsRead(): Promise<void> {
+    await delay(150);
+
+    const notifications = getNotificationsFromStorage();
+    const updated = notifications.map(notification => ({ ...notification, unread: false }));
+
+    setToStorage('notifications', updated);
+  },
+
+  async deleteNotifications(ids: string[]): Promise<void> {
+    await delay(180);
+
+    const notifications = getNotificationsFromStorage();
+    const filtered = notifications.filter(notification => !ids.includes(notification.id));
+
+    setToStorage('notifications', filtered);
+  },
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    await delay(120);
+
+    return getNotificationPreferencesFromStorage();
+  },
+
+  async updateNotificationPreferences(
+    updates: NotificationPreferences,
+  ): Promise<NotificationPreferences> {
+    await delay(200);
+
+    const current = getNotificationPreferencesFromStorage();
+
+    const merged: NotificationPreferences = {
+      ...current,
+      ...updates,
+      enabled: {
+        ...current.enabled,
+        ...updates.enabled,
+      },
+      highPriority: Array.from(new Set(updates.highPriority)),
+    };
+
+    setToStorage('notification_preferences', merged);
+
+    return merged;
   },
 };

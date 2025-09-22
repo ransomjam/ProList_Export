@@ -18,6 +18,7 @@ import { ShipmentWizard } from "@/features/shipments/ShipmentWizard";
 import { ShipmentDetailPage } from "@/features/shipments/ShipmentDetailPage";
 import { DocumentsPage } from "@/features/documents/DocumentsPage";
 import { IssuesPage } from "@/features/issues/IssuesPage";
+import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 import NotFound from "@/pages/NotFound";
 
 // Auth store and query client
@@ -113,6 +114,14 @@ const App = () => {
               </ProtectedRoute>
             }>
               <Route index element={<SettingsPage />} />
+            </Route>
+
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }>
+              <Route index element={<NotificationsPage />} />
             </Route>
 
             {/* 404 fallback */}
