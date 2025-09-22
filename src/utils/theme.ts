@@ -1,7 +1,56 @@
 import type { BrandSettings } from "@/mocks/types";
-import { getFromStorage } from "@/utils/storage";
+import { getFromStorage, setToStorage } from "@/utils/storage";
 
 const STORAGE_KEY = "brand_settings";
+const THEME_STORAGE_KEY = "theme_preference";
+
+const isBrowser = typeof window !== "undefined";
+const isDocument = typeof document !== "undefined";
+
+export type ThemePreference = "light" | "dark";
+
+const getSystemThemePreference = (): ThemePreference => {
+  if (!isBrowser) {
+    return "light";
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+export const getThemePreference = (): ThemePreference => {
+  const stored = getFromStorage<ThemePreference | null>(THEME_STORAGE_KEY, null);
+  return stored ?? getSystemThemePreference();
+};
+
+export const applyThemePreference = (theme: ThemePreference) => {
+  if (!isDocument) {
+    return;
+  }
+
+  const root = document.documentElement;
+
+  if (theme === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+
+  root.setAttribute("data-theme", theme);
+  root.style.colorScheme = theme;
+};
+
+export const persistThemePreference = (theme: ThemePreference) => {
+  if (!isBrowser) {
+    return;
+  }
+
+  setToStorage(THEME_STORAGE_KEY, theme);
+};
+
+export const ensureInitialThemeApplied = () => {
+  const theme = getThemePreference();
+  applyThemePreference(theme);
+};
 
 type HslTuple = {
   h: number;

@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useQuery } from '@tanstack/react-query';
 import { mockApi } from '@/mocks/api';
 import { NotificationsBell } from '@/features/notifications/components/NotificationsBell';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
@@ -175,7 +176,8 @@ export const AppShell = () => {
             </div>
 
             {/* User Menu */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
               <NotificationsBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
