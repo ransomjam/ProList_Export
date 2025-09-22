@@ -51,12 +51,12 @@ import { NotificationsBell } from '@/features/notifications/components/Notificat
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
   { title: 'Shipments', url: '/shipments', icon: Package, disabled: false },
-  { title: 'HS Codes', url: '/hs', icon: Hash, disabled: true },
+  { title: 'HS Codes', url: '/hs', icon: Hash, disabled: false },
   { title: 'Documents', url: '/documents', icon: FileText, disabled: false },
   { title: 'Issues', url: '/issues', icon: AlertTriangle, disabled: true },
-  { title: 'Reports', url: '/reports', icon: BarChart3, disabled: true },
+  { title: 'Reports', url: '/reports', icon: BarChart3, disabled: false },
   { title: 'Notifications', url: '/notifications', icon: Bell, disabled: false },
-  { title: 'Settings', url: '/settings', icon: Settings, disabled: true },
+  { title: 'Settings', url: '/settings', icon: Settings, disabled: false },
 ];
 
 const AppSidebar = () => {
