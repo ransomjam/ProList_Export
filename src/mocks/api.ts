@@ -579,25 +579,47 @@ export const mockApi = {
   // Update shipment
   async updateShipment(id: string, updates: Partial<ShipmentWithItems>): Promise<ShipmentWithItems> {
     await delay();
-    
+
     const shipments = getFromStorage<ShipmentWithItems[]>('shipments', []);
     const index = shipments.findIndex(s => s.id === id);
-    
+
     if (index === -1) {
       throw new Error('Shipment not found');
     }
     
     const oldShipment = shipments[index];
+    const nowIso = new Date().toISOString();
+    const dateStamp = nowIso.split('T')[0];
+
+    let submissionMeta: Partial<ShipmentWithItems> = {};
+
+    if (updates.status === 'submitted' && oldShipment.status !== 'submitted') {
+      const currentUser = getFromStorage<User | null>('current_user', seedUsers[0]);
+      submissionMeta = {
+        submitted_at: nowIso,
+        submitted_by: currentUser?.id ?? seedUsers[0].id,
+      };
+    }
+
+    if (updates.status && updates.status !== 'submitted' && oldShipment.status === 'submitted') {
+      submissionMeta = {
+        ...submissionMeta,
+        submitted_at: updates.submitted_at ?? null,
+        submitted_by: updates.submitted_by ?? null,
+      };
+    }
+
     shipments[index] = {
       ...shipments[index],
       ...updates,
-      updated_at: new Date().toISOString().split('T')[0],
+      ...submissionMeta,
+      updated_at: dateStamp,
     };
-    
+
     setToStorage('shipments', shipments);
-    
+
     // Add events for important changes
-    const now = new Date().toISOString();
+    const now = nowIso;
     if (updates.status === 'submitted' && oldShipment.status !== 'submitted') {
       await this.addEvent({
         id: `event_${Date.now()}`,

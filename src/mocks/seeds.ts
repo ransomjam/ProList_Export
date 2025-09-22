@@ -20,6 +20,8 @@ export interface Shipment {
   value_fcfa: number;
   status: 'draft' | 'submitted' | 'cleared';
   updated_at: string;
+  submitted_at?: string | null;
+  submitted_by?: string | null;
 }
 
 export interface KPI {
@@ -137,44 +139,50 @@ export const seedShipments: ShipmentWithItems[] = [
       { id: 'item_2', product_id: 'p_2', quantity: 100 }
     ]
   },
-  { 
-    id: 's_5002', 
-    reference: 'PL-2025-EX-0002', 
-    buyer: 'Nordic Trade AB', 
-    incoterm: 'CIP', 
-    mode: 'AIR', 
-    route: 'CM → SE', 
-    value_fcfa: 18500000, 
+  {
+    id: 's_5002',
+    reference: 'PL-2025-EX-0002',
+    buyer: 'Nordic Trade AB',
+    incoterm: 'CIP',
+    mode: 'AIR',
+    route: 'CM → SE',
+    value_fcfa: 18500000,
     status: 'submitted',
     updated_at: '2025-09-12',
+    submitted_at: '2025-09-12T08:05:00Z',
+    submitted_by: 'u_1',
     items: [
       { id: 'item_3', product_id: 'p_2', quantity: 50 }
     ]
   },
-  { 
+  {
     id: 's_5003', 
     reference: 'PL-2025-EX-0003', 
     buyer: 'Mediterraneo SpA',
     incoterm: 'CIF', 
     mode: 'SEA', 
-    route: 'CM → IT', 
-    value_fcfa: 33300000, 
-    status: 'cleared',  
+    route: 'CM → IT',
+    value_fcfa: 33300000,
+    status: 'cleared',
     updated_at: '2025-09-14',
+    submitted_at: '2025-09-13T15:45:00Z',
+    submitted_by: 'u_1',
     items: [
       { id: 'item_4', product_id: 'p_3', quantity: 25 }
     ]
   },
-  { 
+  {
     id: 's_5004', 
     reference: 'PL-2025-EX-0004', 
     buyer: 'Atlantic Imports Ltd', 
     incoterm: 'FOB', 
     mode: 'SEA', 
-    route: 'CM → UK', 
-    value_fcfa: 28700000, 
+    route: 'CM → UK',
+    value_fcfa: 28700000,
     status: 'submitted',
     updated_at: '2025-09-15',
+    submitted_at: '2025-09-15T09:20:00Z',
+    submitted_by: 'u_2',
     items: [
       { id: 'item_5', product_id: 'p_1', quantity: 150 }
     ]
