@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KpiCard } from '@/components/dashboard/KpiCard';
 import { ShipmentsTable } from '@/components/dashboard/ShipmentsTable';
+import { InTransitWidget } from '@/components/dashboard/InTransitWidget';
 import { mockApi } from '@/mocks/api';
 import { Plus, Upload, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -155,6 +156,12 @@ export const DashboardPage = () => {
           </TooltipProvider>
         </CardContent>
       </Card>
+
+      <InTransitWidget
+        shipments={shipments || []}
+        loading={shipmentsLoading}
+        error={shipmentsError}
+      />
 
       {/* Recent Shipments */}
       {shipmentsLoading ? (
