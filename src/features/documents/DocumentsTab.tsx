@@ -84,6 +84,7 @@ import type {
 interface DocumentsTabProps {
   shipment: ShipmentWithItems;
   products: Product[];
+  onOpenDownloadCentre?: () => void;
 }
 
 const statusVariant = (status: DocStatus) => {
@@ -176,7 +177,7 @@ const canGenerate = (docKey: DocKey) => docKey === 'INVOICE' || docKey === 'PACK
 const findVersion = (doc: ShipmentDocument) =>
   doc.current_version ? doc.versions.find(v => v.version === doc.current_version) : undefined;
 
-export const DocumentsTab = ({ shipment, products }: DocumentsTabProps) => {
+export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: DocumentsTabProps) => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const highlightParam = searchParams.get('highlight') as DocKey | null;
@@ -370,6 +371,22 @@ export const DocumentsTab = ({ shipment, products }: DocumentsTabProps) => {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Submission packs</p>
+          <p className="text-sm text-muted-foreground">Latest approved versions are included.</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start border-slate-300 text-foreground hover:bg-slate-100 sm:self-auto"
+          onClick={onOpenDownloadCentre}
+          disabled={!onOpenDownloadCentre}
+        >
+          <Download className="mr-2 h-4 w-4" /> Download Centre
+        </Button>
+      </div>
+
       {documentRequirements.required.length > 0 && (
         <Card>
           <CardHeader>
