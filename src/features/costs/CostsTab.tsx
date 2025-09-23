@@ -1,6 +1,7 @@
 // Costs tab for shipment with cost lines, payments, and PDF generation
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ import {
   TrendingUp,
   CreditCard,
   Calendar,
+  Calculator,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { mockApi } from '@/mocks/api';
@@ -118,6 +120,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 export const CostsTab = ({ shipment }: CostsTabProps) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isCostLineDialogOpen, setIsCostLineDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingCostLine, setEditingCostLine] = useState<CostLine | null>(null);
@@ -354,6 +357,14 @@ export const CostsTab = ({ shipment }: CostsTabProps) => {
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <CardTitle>Cost Summary</CardTitle>
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/estimator?shipmentId=${shipment.id}`)}
+              >
+                <Calculator className="mr-2 h-4 w-4" />
+                Open in Estimator
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

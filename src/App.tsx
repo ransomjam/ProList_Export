@@ -22,6 +22,7 @@ import { NotificationsPage } from "@/features/notifications/NotificationsPage";
 import { ComplianceOverviewPage } from "@/features/compliance/ComplianceOverviewPage";
 import { ComplianceInboxPage } from "@/features/compliance/ComplianceInboxPage";
 import { ComplianceDocumentBuilder } from "@/features/compliance/ComplianceDocumentBuilder";
+import { EstimatorPage } from "@/features/estimator/EstimatorPage";
 import NotFound from "@/pages/NotFound";
 
 // Auth store and query client
@@ -76,9 +77,17 @@ const App = () => {
               <Route path="new" element={<ShipmentWizard />} />
               <Route path=":id" element={<ShipmentDetailPage />} />
             </Route>
-            
+
+            <Route path="/estimator" element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }>
+              <Route index element={<EstimatorPage />} />
+            </Route>
+
             {/* Placeholder routes (coming soon) */}
-            
+
             <Route path="/hs" element={
               <ProtectedRoute>
                 <AppShell />
