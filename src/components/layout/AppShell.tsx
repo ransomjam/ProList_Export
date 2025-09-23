@@ -31,6 +31,7 @@ import {
 import {
   LayoutDashboard,
   Package,
+  Calculator,
   Hash,
   FileText,
   ShieldCheck,
@@ -53,6 +54,7 @@ import { NotificationsBell } from '@/features/notifications/components/Notificat
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
   { title: 'Shipments', url: '/shipments', icon: Package, disabled: false },
+  { title: 'Estimator', url: '/estimator', icon: Calculator, disabled: false },
   { title: 'Compliance', url: '/compliance', icon: ShieldCheck, disabled: false },
   { title: 'HS Codes', url: '/hs', icon: Hash, disabled: false },
   { title: 'Documents', url: '/documents', icon: FileText, disabled: false },
