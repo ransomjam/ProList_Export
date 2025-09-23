@@ -64,6 +64,7 @@ import { SubmissionPackSummaryCard } from '@/features/shipments/components/Submi
 import { SubmissionPackPreview } from '@/features/shipments/components/SubmissionPackPreview';
 import { DownloadCentreSheet } from '@/features/shipments/components/DownloadCentreSheet';
 import { ShareSubmissionPackDialog } from '@/features/shipments/components/ShareSubmissionPackDialog';
+import { TrackingTab } from '@/features/shipments/components/TrackingTab';
 import { getDocumentLabel } from '@/features/shipments/docMeta';
 import type {
   SubmissionPackDocumentSummary,
@@ -915,8 +916,9 @@ export const ShipmentDetailPage = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tracking">Tracking</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="issues">Issues</TabsTrigger>
           <TabsTrigger value="costs">Costs</TabsTrigger>
@@ -1055,6 +1057,10 @@ export const ShipmentDetailPage = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="tracking">
+          <TrackingTab shipment={shipment} />
         </TabsContent>
 
         <TabsContent value="documents">
