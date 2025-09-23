@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -176,6 +177,7 @@ export const AppShell = () => {
 
             {/* User Menu */}
             <div className="flex items-center gap-2">
+              <ThemeToggle className="bg-background/90" />
               <NotificationsBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

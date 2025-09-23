@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { type ComponentProps, useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getFromStorage, setToStorage } from "@/utils/storage";
+import { cn } from "@/lib/utils";
 
 const THEME_STORAGE_KEY = "theme_preference";
 
@@ -29,7 +30,13 @@ const getInitialTheme = (): ThemeMode => {
   return "light";
 };
 
-export const ThemeToggle = () => {
+type ThemeToggleProps = {
+  className?: string;
+  variant?: ComponentProps<typeof Button>["variant"];
+  size?: ComponentProps<typeof Button>["size"];
+};
+
+export const ThemeToggle = ({ className, variant = "outline", size = "icon" }: ThemeToggleProps) => {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
 
   useEffect(() => {
@@ -52,9 +59,9 @@ export const ThemeToggle = () => {
 
   return (
     <Button
-      variant="outline"
-      size="icon"
-      className="fixed right-4 top-4 z-50 h-9 w-9 rounded-full bg-background/90 shadow-sm backdrop-blur"
+      variant={variant}
+      size={size}
+      className={cn("h-9 w-9 rounded-full shadow-sm", className)}
       onClick={toggleTheme}
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}

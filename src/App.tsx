@@ -9,7 +9,6 @@ import { useEffect } from "react";
 import { LandingPage } from "@/features/landing/LandingPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { AppShell } from "@/components/layout/AppShell";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { HsCodesPage } from "@/features/hs/HsCodesPage";
@@ -48,7 +47,6 @@ const App = () => {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <ThemeToggle />
           <Toaster />
           <Sonner />
           <Routes>
