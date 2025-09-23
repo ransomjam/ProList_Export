@@ -884,7 +884,7 @@ export const ReportsPage = () => {
         <p className="text-muted-foreground">Analytics and exports for your workspace.</p>
       </div>
 
-      <div className="sticky top-[3.75rem] z-30 space-y-3 rounded-2xl border border-border/60 bg-background/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Filter className="h-4 w-4" />
