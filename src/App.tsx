@@ -23,6 +23,7 @@ import { ComplianceOverviewPage } from "@/features/compliance/ComplianceOverview
 import { ComplianceInboxPage } from "@/features/compliance/ComplianceInboxPage";
 import { ComplianceDocumentBuilder } from "@/features/compliance/ComplianceDocumentBuilder";
 import { EstimatorPage } from "@/features/estimator/EstimatorPage";
+import { TrackingOverviewPage } from "@/features/tracking/TrackingOverviewPage";
 import NotFound from "@/pages/NotFound";
 
 // Auth store and query client
@@ -76,6 +77,14 @@ const App = () => {
               <Route index element={<ShipmentsListPage />} />
               <Route path="new" element={<ShipmentWizard />} />
               <Route path=":id" element={<ShipmentDetailPage />} />
+            </Route>
+
+            <Route path="/tracking" element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }>
+              <Route index element={<TrackingOverviewPage />} />
             </Route>
 
             <Route path="/estimator" element={

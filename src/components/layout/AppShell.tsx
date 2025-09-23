@@ -42,6 +42,7 @@ import {
   LogOut,
   Menu,
   Bell,
+  Navigation2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { NavLink } from 'react-router-dom';
@@ -53,6 +54,7 @@ import { NotificationsBell } from '@/features/notifications/components/Notificat
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
   { title: 'Shipments', url: '/shipments', icon: Package, disabled: false },
+  { title: 'Tracking', url: '/tracking', icon: Navigation2, disabled: false },
   { title: 'Estimator', url: '/estimator', icon: Calculator, disabled: false },
   { title: 'Compliance', url: '/compliance', icon: ShieldCheck, disabled: false },
   { title: 'HS Codes', url: '/hs', icon: Hash, disabled: false },
