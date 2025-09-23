@@ -20,7 +20,7 @@ import { buildQuietHoursLabel } from "@/features/notifications/utils";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 
 const TYPE_DESCRIPTIONS: Record<NotificationType, string> = {
-  documents: "Generated or approved documents.",
+  documents: "Ready, submitted, or signed documents.",
   issues: "When an issue opens, changes status, or gets a comment.",
   shipments: "Shipment created, submitted, or cleared events.",
   payments: "Payments captured against a shipment.",

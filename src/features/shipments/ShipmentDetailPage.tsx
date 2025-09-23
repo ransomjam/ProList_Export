@@ -69,6 +69,8 @@ import type {
   SubmissionPackDocumentSummary,
   SubmissionPackSummary as SubmissionPackSummaryType,
 } from '@/features/shipments/types';
+import { DocStatusBadge } from '@/components/documents/DocStatusBadge';
+import { docStatusLabel, normalizeDocStatus } from '@/utils/docStatus';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -91,33 +93,6 @@ const getStatusColor = (status: string) => {
     case 'draft':
     default:
       return 'text-orange-600';
-  }
-};
-
-const docStatusVariant = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'default';
-    case 'generated':
-    case 'draft':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-};
-
-const docStatusLabel = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'Approved';
-    case 'generated':
-      return 'Ready';
-    case 'draft':
-      return 'Draft';
-    case 'rejected':
-      return 'Needs update';
-    default:
-      return 'Required';
   }
 };
 
@@ -397,30 +372,45 @@ export const ShipmentDetailPage = () => {
         ? versions.find(version => version.version === doc.current_version) ?? null
         : versions[versions.length - 1] ?? null;
       const versionLabel = currentVersion?.version ? ` (v${currentVersion.version})` : '';
-      const note = currentVersion?.note;
+      const note = currentVersion?.note ? ` — ${currentVersion.note}` : '';
+      const normalizedStatus = normalizeDocStatus(item.status);
 
-      switch (item.status) {
-        case 'approved':
+      switch (normalizedStatus) {
+        case 'signed':
           return {
             key: item.key,
             ready: true,
-            text: ensureSentence(
-              `${docName} approved${versionLabel}${note ? ` — ${note}` : ''}`
-            ),
+            text: ensureSentence(`${docName} signed${versionLabel}${note}`),
           };
-        case 'generated':
+        case 'active':
           return {
             key: item.key,
             ready: true,
-            text: ensureSentence(
-              `${docName} generated${versionLabel}${note ? ` — ${note}` : ''}`
-            ),
+            text: ensureSentence(`${docName} active${versionLabel}${note}`),
+          };
+        case 'ready':
+          return {
+            key: item.key,
+            ready: true,
+            text: ensureSentence(`${docName} ready to submit${versionLabel}${note}`),
+          };
+        case 'submitted':
+          return {
+            key: item.key,
+            ready: false,
+            text: ensureSentence(`${docName} submitted to authority — awaiting receipt`),
+          };
+        case 'under_review':
+          return {
+            key: item.key,
+            ready: false,
+            text: ensureSentence(`${docName} under review by authority`),
           };
         case 'draft':
           return {
             key: item.key,
             ready: false,
-            text: ensureSentence(`${docName} still in draft — approve before submission`),
+            text: ensureSentence(`${docName} still in draft — mark ready before submission`),
           };
         case 'rejected':
           return {
@@ -428,10 +418,17 @@ export const ShipmentDetailPage = () => {
             ready: false,
             text: ensureSentence(`${docName} rejected — upload a corrected version`),
           };
+        case 'expired':
+          return {
+            key: item.key,
+            ready: false,
+            text: ensureSentence(`${docName} expired — renewal required`),
+          };
+        case 'required':
         default:
           return {
             key: item.key,
-            ready: ['generated', 'approved'].includes(item.status),
+            ready: ['ready', 'signed', 'active'].includes(normalizedStatus),
             text: ensureSentence(missingDocCopy(item.key, shipment, item.reason)),
           };
       }
@@ -1003,17 +1000,29 @@ export const ShipmentDetailPage = () => {
                       ? versions.find(version => version.version === item.doc?.current_version) ?? null
                       : versions[versions.length - 1] ?? null;
 
+                    const normalizedStatus = normalizeDocStatus(item.status);
                     const helperText = (() => {
-                      if (item.status === 'approved' || item.status === 'generated') {
+                      if (['signed', 'ready', 'active'].includes(normalizedStatus)) {
                         if (currentVersion?.note) return currentVersion.note;
                         if (currentVersion?.fileName) return `Latest file: ${currentVersion.fileName}`;
-                        return 'Ready for submission';
+                        return normalizedStatus === 'active'
+                          ? 'Active document — keep an eye on the expiry date.'
+                          : 'Ready for submission';
                       }
-                      if (item.status === 'draft') {
-                        return 'Draft version saved — approve when ready.';
+                      if (normalizedStatus === 'submitted') {
+                        return 'Submitted to state portal — awaiting acknowledgement.';
                       }
-                      if (item.status === 'rejected') {
+                      if (normalizedStatus === 'under_review') {
+                        return 'Under review by authority.';
+                      }
+                      if (normalizedStatus === 'draft') {
+                        return 'Draft version saved — mark ready when complete.';
+                      }
+                      if (normalizedStatus === 'rejected') {
                         return 'Rejected — upload a corrected version.';
+                      }
+                      if (normalizedStatus === 'expired') {
+                        return 'Expired — renew required before shipment moves.';
                       }
                       return item.reason ?? missingDocCopy(item.key, shipment);
                     })();
@@ -1028,9 +1037,7 @@ export const ShipmentDetailPage = () => {
                             <span className="text-sm text-muted-foreground">{helperText}</span>
                           )}
                         </div>
-                        <Badge variant={docStatusVariant(item.status)} className="capitalize">
-                          {docStatusLabel(item.status)}
-                        </Badge>
+                        <DocStatusBadge status={item.status} />
                       </div>
                     );
                   })}

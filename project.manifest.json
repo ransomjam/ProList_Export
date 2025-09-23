@@ -7,12 +7,12 @@
     "green": "#0AA66D", 
     "mint": "#0FBF6D" 
   },
-  "routes": ["/", "/login", "/app", "/shipments", "/hs", "/documents", "/issues", "/reports", "/settings"],
+  "routes": ["/", "/login", "/app", "/shipments", "/compliance", "/hs", "/documents", "/issues", "/reports", "/notifications", "/settings"],
   "roles": ["exporter_admin","broker","finance","viewer"],
   "currencies": ["XAF"],
   "incoterms": ["FOB","CIF","CIP"],
   "statuses": { 
     "shipment": ["draft","submitted","cleared"], 
-    "doc": ["required","draft","generated","approved"] 
+    "doc": ["required","draft","ready","submitted","under_review","signed","active","expired","rejected"]
   }
 }

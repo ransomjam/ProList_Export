@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -38,8 +37,10 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { mockApi } from '@/mocks/api';
-import type { ShipmentDocument, DocStatus } from '@/mocks/seeds';
+import type { ShipmentDocument } from '@/mocks/seeds';
 import type { DocKey } from '@/utils/rules';
+import { DocStatusBadge } from '@/components/documents/DocStatusBadge';
+import { normalizeDocStatus, type NormalizedDocStatus } from '@/utils/docStatus';
 
 const documentNameMap: Record<DocKey, string> = {
   INVOICE: 'Commercial Invoice',
@@ -49,31 +50,6 @@ const documentNameMap: Record<DocKey, string> = {
   INSURANCE: 'Insurance Certificate',
   BILL_OF_LADING: 'Bill of Lading',
   CUSTOMS_EXPORT_DECLARATION: 'Customs Export Declaration',
-};
-
-const statusVariant = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'default';
-    case 'generated':
-    case 'draft':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-};
-
-const statusLabel = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'Approved';
-    case 'generated':
-      return 'Ready';
-    case 'draft':
-      return 'Draft';
-    default:
-      return 'Required';
-  }
 };
 
 const docTypeOptions: { label: string; value: DocKey }[] = [
@@ -86,11 +62,16 @@ const docTypeOptions: { label: string; value: DocKey }[] = [
   { label: 'Customs Declaration', value: 'CUSTOMS_EXPORT_DECLARATION' },
 ];
 
-const statusOptions: { label: string; value: DocStatus }[] = [
+const statusOptions: { label: string; value: NormalizedDocStatus }[] = [
   { label: 'Required', value: 'required' },
   { label: 'Draft', value: 'draft' },
-  { label: 'Ready', value: 'generated' },
-  { label: 'Approved', value: 'approved' },
+  { label: 'Ready', value: 'ready' },
+  { label: 'Submitted', value: 'submitted' },
+  { label: 'Under review', value: 'under_review' },
+  { label: 'Signed', value: 'signed' },
+  { label: 'Active', value: 'active' },
+  { label: 'Expired', value: 'expired' },
+  { label: 'Rejected', value: 'rejected' },
 ];
 
 const formatDate = (value?: string) => {
@@ -122,7 +103,7 @@ export const DocumentsPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocTypes, setSelectedDocTypes] = useState<DocKey[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<DocStatus[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<NormalizedDocStatus[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
@@ -149,7 +130,8 @@ export const DocumentsPage = () => {
       const shipmentRef = shipmentsMap.get(doc.shipment_id) ?? '';
       const matchesSearch = !search || shipmentRef.toLowerCase().includes(search);
       const matchesDocType = selectedDocTypes.length === 0 || selectedDocTypes.includes(doc.doc_key);
-      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(doc.status);
+      const normalizedStatus = normalizeDocStatus(doc.status);
+      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(normalizedStatus);
       const currentVersion = doc.current_version ? doc.versions.find(v => v.version === doc.current_version) : undefined;
       const updatedAt = currentVersion ? new Date(currentVersion.created_at).getTime() : undefined;
       const withinRange =
@@ -416,9 +398,7 @@ export const DocumentsPage = () => {
                         <TableCell>{documentNameMap[doc.doc_key] ?? doc.doc_key}</TableCell>
                         <TableCell>{doc.current_version ? `v${doc.current_version}` : '-'}</TableCell>
                         <TableCell>
-                          <Badge variant={statusVariant(doc.status)} className="capitalize">
-                            {statusLabel(doc.status)}
-                          </Badge>
+                      <DocStatusBadge status={doc.status} className="capitalize" />
                         </TableCell>
                         <TableCell>{currentVersion ? formatDate(currentVersion.created_at) : '-'}</TableCell>
                         <TableCell className="text-right">

@@ -33,6 +33,7 @@ import {
   Package,
   Hash,
   FileText,
+  ShieldCheck,
   AlertTriangle,
   BarChart3,
   Settings,
@@ -52,6 +53,7 @@ import { NotificationsBell } from '@/features/notifications/components/Notificat
 const sidebarItems = [
   { title: 'Dashboard', url: '/app', icon: LayoutDashboard, active: true },
   { title: 'Shipments', url: '/shipments', icon: Package, disabled: false },
+  { title: 'Compliance', url: '/compliance', icon: ShieldCheck, disabled: false },
   { title: 'HS Codes', url: '/hs', icon: Hash, disabled: false },
   { title: 'Documents', url: '/documents', icon: FileText, disabled: false },
   { title: 'Issues', url: '/issues', icon: AlertTriangle, disabled: true },
@@ -69,7 +71,8 @@ const AppSidebar = () => {
     queryFn: () => mockApi.getOrgSettings(),
   });
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <Sidebar collapsible="icon">

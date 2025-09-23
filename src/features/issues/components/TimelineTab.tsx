@@ -54,13 +54,13 @@ const eventTypeConfig = {
   },
   doc_generated: {
     icon: FileText,
-    label: 'Document Generated',
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
+    label: 'Document Ready',
+    color: 'text-sky-600',
+    bgColor: 'bg-sky-100',
   },
   doc_approved: {
     icon: CheckCircle,
-    label: 'Document Approved',
+    label: 'Document Signed',
     color: 'text-green-600',
     bgColor: 'bg-green-100',
   },
@@ -151,9 +151,9 @@ export const TimelineTab = ({ shipment }: TimelineTabProps) => {
       case 'shipment_submitted':
         return `${actor} submitted shipment for processing`;
       case 'doc_generated':
-        return `${actor} generated ${event.payload?.doc_key} (v${event.payload?.version})`;
+        return `${actor} marked ${event.payload?.doc_key} ready (v${event.payload?.version})`;
       case 'doc_approved':
-        return `${actor} approved ${event.payload?.doc_key} (v${event.payload?.version})`;
+        return `${actor} signed ${event.payload?.doc_key} (v${event.payload?.version})`;
       case 'issue_opened':
         return `${actor} opened issue: "${event.payload?.title}"`;
       case 'issue_status_changed':

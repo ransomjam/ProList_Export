@@ -47,7 +47,18 @@ export interface Partner {
   address?: string;
 }
 
-export type DocStatus = 'required' | 'draft' | 'generated' | 'approved' | 'rejected';
+export type DocStatus =
+  | 'required'
+  | 'draft'
+  | 'generated'
+  | 'ready'
+  | 'submitted'
+  | 'under_review'
+  | 'approved'
+  | 'signed'
+  | 'active'
+  | 'expired'
+  | 'rejected';
 
 export interface DocVersion {
   id: string;

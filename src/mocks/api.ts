@@ -798,7 +798,7 @@ export const mockApi = {
 
     doc.versions.push(newVersion);
     doc.current_version = versionNumber;
-    doc.status = 'generated';
+    doc.status = 'ready';
 
     setToStorage('documents', allDocs);
 
@@ -858,7 +858,7 @@ export const mockApi = {
 
     doc.versions.push(newVersion);
     doc.current_version = versionNumber;
-    doc.status = 'generated';
+    doc.status = 'ready';
 
     setToStorage('documents', allDocs);
     return doc;
@@ -877,7 +877,14 @@ export const mockApi = {
 
     if (!doc) throw new Error('Document not found');
 
-    doc.status = status;
+    const normalizedStatus: DocStatus =
+      status === 'generated'
+        ? 'ready'
+        : status === 'approved'
+          ? 'signed'
+          : status;
+
+    doc.status = normalizedStatus;
 
     // Add note to current version if provided
     if (note && doc.current_version) {
@@ -890,7 +897,7 @@ export const mockApi = {
     setToStorage('documents', allDocs);
 
     // Add doc approved event
-    if (status === 'approved') {
+    if (normalizedStatus === 'signed' || normalizedStatus === 'active') {
       await this.addEvent({
         id: `event_${Date.now()}`,
         shipment_id: shipmentId,
