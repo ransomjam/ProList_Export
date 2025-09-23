@@ -10,8 +10,10 @@ import { ShipmentsTable } from '@/components/dashboard/ShipmentsTable';
 import { mockApi } from '@/mocks/api';
 import { Plus, Upload, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage = () => {
+  const navigate = useNavigate();
   // Fetch KPIs
   const { 
     data: kpis, 
@@ -37,6 +39,18 @@ export const DashboardPage = () => {
   const handleRefresh = () => {
     refetchKpis();
     refetchShipments();
+  };
+
+  const handleNewShipment = () => {
+    navigate('/shipments/new');
+  };
+
+  const handleUploadDocument = () => {
+    navigate('/documents');
+  };
+
+  const handleOpenIssues = () => {
+    navigate('/issues');
   };
 
   return (
@@ -92,49 +106,53 @@ export const DashboardPage = () => {
       <Card>
         <CardContent className="p-6">
           <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
-          <div className="flex flex-wrap gap-3">
-            <TooltipProvider>
+          <TooltipProvider>
+            <div className="flex flex-wrap gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button disabled className="flex-1 sm:flex-none">
+                  <Button onClick={handleNewShipment} className="flex-1 sm:flex-none">
                     <Plus className="mr-2 h-4 w-4" />
                     New Shipment
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Coming soon - Create a new shipment</p>
+                  <p>Start a new export shipment</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
 
-            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" disabled className="flex-1 sm:flex-none">
+                  <Button
+                    variant="outline"
+                    onClick={handleUploadDocument}
+                    className="flex-1 sm:flex-none"
+                  >
                     <Upload className="mr-2 h-4 w-4" />
                     Upload Document
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Coming soon - Upload compliance documents</p>
+                  <p>Jump to the documents workspace</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
 
-            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" disabled className="flex-1 sm:flex-none">
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenIssues}
+                    className="flex-1 sm:flex-none"
+                  >
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     Open Issues
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Coming soon - View compliance issues</p>
+                  <p>Review outstanding compliance issues</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
-          </div>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 
