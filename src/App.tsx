@@ -19,6 +19,9 @@ import { ShipmentDetailPage } from "@/features/shipments/ShipmentDetailPage";
 import { DocumentsPage } from "@/features/documents/DocumentsPage";
 import { IssuesPage } from "@/features/issues/IssuesPage";
 import { NotificationsPage } from "@/features/notifications/NotificationsPage";
+import { ComplianceOverviewPage } from "@/features/compliance/ComplianceOverviewPage";
+import { ComplianceInboxPage } from "@/features/compliance/ComplianceInboxPage";
+import { ComplianceDocumentBuilder } from "@/features/compliance/ComplianceDocumentBuilder";
 import NotFound from "@/pages/NotFound";
 
 // Auth store and query client
@@ -90,6 +93,19 @@ const App = () => {
               </ProtectedRoute>
             }>
               <Route index element={<DocumentsPage />} />
+            </Route>
+
+            <Route
+              path="/compliance"
+              element={
+                <ProtectedRoute>
+                  <AppShell />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<ComplianceOverviewPage />} />
+              <Route path="inbox" element={<ComplianceInboxPage />} />
+              <Route path="documents/:docId" element={<ComplianceDocumentBuilder />} />
             </Route>
             
             <Route path="/issues" element={

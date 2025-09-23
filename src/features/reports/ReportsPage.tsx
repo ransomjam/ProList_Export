@@ -73,6 +73,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { abbreviateFcfa, formatFcfa } from '@/utils/currency';
+import { DocStatusBadge } from '@/components/documents/DocStatusBadge';
+import { docStatusLabel } from '@/utils/docStatus';
 
 import {
   reportDocuments,
@@ -450,8 +452,8 @@ export const ReportsPage = () => {
   const { shipments: filteredShipments, documents: filteredDocuments } = useReportData(appliedFilters);
 
   const totalShipmentsValue = filteredShipments.reduce((sum, shipment) => sum + shipment.value, 0);
-  const totalDocumentsGenerated = filteredDocuments.filter(
-    (document) => document.status === 'Generated' || document.status === 'Approved',
+  const totalDocumentsReady = filteredDocuments.filter((document) =>
+    ['ready', 'submitted', 'under_review', 'signed', 'active'].includes(document.status),
   ).length;
   const totalOpenIssues = filteredShipments.reduce(
     (sum, shipment) => sum + shipment.issues.filter((issue) => issue.status !== 'resolved').length,
@@ -781,7 +783,7 @@ export const ReportsPage = () => {
       reference: document.shipmentReference,
       document: document.type,
       version: document.version,
-      status: document.status,
+      status: docStatusLabel(document.status),
       updated: format(getDateFromString(document.updatedAt), 'dd MMM yyyy'),
     }));
 
@@ -1147,10 +1149,10 @@ export const ReportsPage = () => {
             <CardContent className="flex flex-col gap-3 p-6">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <FileText className="h-4 w-4" />
-                Documents Generated
+                Docs ready / submitted
               </div>
-              <div className="text-3xl font-semibold tracking-tight">{totalDocumentsGenerated}</div>
-              <p className="text-xs text-muted-foreground">Generated or approved.</p>
+              <div className="text-3xl font-semibold tracking-tight">{totalDocumentsReady}</div>
+              <p className="text-xs text-muted-foreground">Ready, submitted, under review, signed, or active.</p>
             </CardContent>
           </Card>
           <Card className="rounded-2xl border-border/60 shadow-sm">
@@ -1474,7 +1476,7 @@ export const ReportsPage = () => {
                   </ChartContainer>
                 ) : (
                   <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
-                    No documents generated in this range.
+                    No documents in this range.
                   </div>
                 )
               ) : (
@@ -1741,7 +1743,7 @@ export const ReportsPage = () => {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-1">
                     <CardTitle className="text-base">Documents</CardTitle>
-                    <CardDescription>Documents generated for the filtered shipments.</CardDescription>
+                    <CardDescription>Official documents for the filtered shipments.</CardDescription>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative w-full sm:w-64">
@@ -1800,9 +1802,7 @@ export const ReportsPage = () => {
                               <TableCell>{document.type}</TableCell>
                               <TableCell>{document.version}</TableCell>
                               <TableCell>
-                                <Badge variant="secondary" className="capitalize">
-                                  {document.status}
-                                </Badge>
+                                <DocStatusBadge status={document.status} />
                               </TableCell>
                               <TableCell>{format(documentDate, 'dd MMM yyyy')}</TableCell>
                               <TableCell className="text-right text-muted-foreground">

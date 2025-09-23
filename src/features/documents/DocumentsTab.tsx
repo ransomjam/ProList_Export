@@ -78,40 +78,15 @@ import type {
   Product,
   ShipmentDocument,
   DocVersion,
-  DocStatus,
 } from '@/mocks/seeds';
+import { DocStatusBadge } from '@/components/documents/DocStatusBadge';
+import { normalizeDocStatus } from '@/utils/docStatus';
 
 interface DocumentsTabProps {
   shipment: ShipmentWithItems;
   products: Product[];
   onOpenDownloadCentre?: () => void;
 }
-
-const statusVariant = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'default';
-    case 'generated':
-      return 'secondary';
-    case 'draft':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-};
-
-const statusLabel = (status: DocStatus) => {
-  switch (status) {
-    case 'approved':
-      return 'Approved';
-    case 'generated':
-      return 'Ready';
-    case 'draft':
-      return 'Draft';
-    default:
-      return 'Required';
-  }
-};
 
 const documentNames: Record<DocKey, string> = {
   COO: 'Certificate of Origin',
@@ -317,12 +292,12 @@ export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: Docum
 
   const approveMutation = useMutation({
     mutationFn: ({ docKey, note }: { docKey: DocKey; note: string }) =>
-      mockApi.setDocumentStatus(shipment.id, docKey, 'approved', note),
+      mockApi.setDocumentStatus(shipment.id, docKey, 'signed', note),
     onSuccess: (doc) => {
       queryClient.invalidateQueries({ queryKey: ['shipment-documents', shipment.id] });
       setApprovingDoc(null);
       setApproveNote('');
-      toast.success(`${getDocumentName(doc.doc_key)} approved`);
+      toast.success(`${getDocumentName(doc.doc_key)} marked as signed`);
     },
     onError: () => {
       toast.error('Failed to approve document');
@@ -469,9 +444,7 @@ export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: Docum
                             : 'External Authority'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={statusVariant(doc.status)} className="capitalize">
-                            {statusLabel(doc.status)}
-                          </Badge>
+                          <DocStatusBadge status={doc.status} />
                         </TableCell>
                         <TableCell>
                           {currentVersion ? formatDate(currentVersion.created_at) : '-'}
@@ -515,12 +488,12 @@ export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: Docum
                                 <DropdownMenuItem onSelect={() => setUploadDoc(doc)}>
                                   <Upload className="mr-2 h-4 w-4" /> Upload new version
                                 </DropdownMenuItem>
-                                {doc.status === 'generated' && (
+                                {normalizeDocStatus(doc.status) === 'ready' && (
                                   <DropdownMenuItem onSelect={() => {
                                     setApprovingDoc(doc);
                                     setApproveNote('');
                                   }}>
-                                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                                    <CheckCircle className="mr-2 h-4 w-4" /> Mark signed
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
@@ -676,9 +649,9 @@ export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: Docum
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve document</AlertDialogTitle>
+            <AlertDialogTitle>Mark document as signed</AlertDialogTitle>
             <AlertDialogDescription>
-              Provide a short note to confirm approval of {approvingDoc ? getDocumentName(approvingDoc.doc_key) : 'document'}.
+              Provide a short note to confirm the signed copy of {approvingDoc ? getDocumentName(approvingDoc.doc_key) : 'document'} is now active.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -696,7 +669,7 @@ export const DocumentsTab = ({ shipment, products, onOpenDownloadCentre }: Docum
               disabled={!approveNote.trim() || approveMutation.isPending}
               onClick={handleApprove}
             >
-              Approve
+              Confirm signed copy
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
