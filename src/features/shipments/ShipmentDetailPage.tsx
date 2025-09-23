@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,8 @@ import {
   FileText,
   AlertTriangle,
   TrendingUp,
+  Download,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { mockApi } from '@/mocks/api';
@@ -57,6 +60,15 @@ import { HsQuickPicker } from '@/features/hs/components/HsQuickPicker';
 import type { ShipmentWithItems, Product, ShipmentDocument, DocStatus } from '@/mocks/seeds';
 import { seedUsers } from '@/mocks/seeds';
 import { SubmissionReadinessCard, type ReadinessChecklistItem } from '@/features/shipments/SubmissionReadinessCard';
+import { SubmissionPackSummaryCard } from '@/features/shipments/components/SubmissionPackSummaryCard';
+import { SubmissionPackPreview } from '@/features/shipments/components/SubmissionPackPreview';
+import { DownloadCentreSheet } from '@/features/shipments/components/DownloadCentreSheet';
+import { ShareSubmissionPackDialog } from '@/features/shipments/components/ShareSubmissionPackDialog';
+import { getDocumentLabel } from '@/features/shipments/docMeta';
+import type {
+  SubmissionPackDocumentSummary,
+  SubmissionPackSummary as SubmissionPackSummaryType,
+} from '@/features/shipments/types';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -109,16 +121,6 @@ const docStatusLabel = (status: DocStatus) => {
   }
 };
 
-const documentNameMap: Record<DocKey, string> = {
-  INVOICE: 'Commercial Invoice',
-  PACKING_LIST: 'Packing List',
-  COO: 'Certificate of Origin',
-  PHYTO: 'Phytosanitary Certificate',
-  INSURANCE: 'Insurance Certificate',
-  BILL_OF_LADING: 'Bill of Lading',
-  CUSTOMS_EXPORT_DECLARATION: 'Customs Export Declaration',
-};
-
 const ensureSentence = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed) return '';
@@ -150,7 +152,7 @@ const missingDocCopy = (
     case 'CUSTOMS_EXPORT_DECLARATION':
       return 'Customs export declaration pending completion';
     default:
-      return fallback || `${documentNameMap[docKey] ?? docKey} missing`;
+      return fallback || `${getDocumentLabel(docKey)} missing`;
   }
 };
 
@@ -177,6 +179,11 @@ export const ShipmentDetailPage = () => {
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [isHsPickerOpen, setIsHsPickerOpen] = useState(false);
+  const [isDownloadCentreOpen, setIsDownloadCentreOpen] = useState(false);
+  const [isPackPreviewOpen, setIsPackPreviewOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [sharePack, setSharePack] = useState<SubmissionPackSummaryType | null>(null);
+  const [packs, setPacks] = useState<SubmissionPackSummaryType[]>([]);
 
   const { data: shipment, isLoading, error } = useQuery({
     queryKey: ['shipment', id],
@@ -312,7 +319,7 @@ export const ShipmentDetailPage = () => {
   };
 
   const handleDownloadSubmissionPack = () => {
-    toast.info('Submission pack download coming soon in this demo.');
+    handleDownloadPack();
   };
 
   const handleDelete = () => {
@@ -346,53 +353,28 @@ export const ShipmentDetailPage = () => {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-8 w-64" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-16 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-96 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error || !shipment) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate('/shipments')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Shipments
-          </Button>
-        </div>
-        
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Shipment not found or failed to load. Please check the URL and try again.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const formatDateTimeWithTime = (dateString: string) => {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return new Date().toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   // Calculate totals
-  const totals = (shipment.items || []).reduce((acc, item) => {
+  const totals = (shipment?.items ?? []).reduce((acc, item) => {
     const product = products.find(p => p.id === item.product_id);
     if (product) {
       acc.value += product.unit_price_fcfa * item.quantity;
@@ -406,56 +388,84 @@ export const ShipmentDetailPage = () => {
   const goToIssues = () => handleTabChange('issues');
   const goToCosts = () => handleTabChange('costs');
 
-  const documentStatusSummaries = documentChecklist.map(item => {
-    const docName = documentNameMap[item.key] ?? item.key;
-    const doc = item.doc;
-    const versions = doc?.versions ?? [];
-    const currentVersion = doc?.current_version
-      ? versions.find(version => version.version === doc.current_version) ?? null
-      : versions[versions.length - 1] ?? null;
-    const versionLabel = currentVersion?.version ? ` (v${currentVersion.version})` : '';
-    const note = currentVersion?.note;
+  const documentStatusSummaries = useMemo(() => {
+    return documentChecklist.map(item => {
+      const docName = getDocumentLabel(item.key);
+      const doc = item.doc;
+      const versions = doc?.versions ?? [];
+      const currentVersion = doc?.current_version
+        ? versions.find(version => version.version === doc.current_version) ?? null
+        : versions[versions.length - 1] ?? null;
+      const versionLabel = currentVersion?.version ? ` (v${currentVersion.version})` : '';
+      const note = currentVersion?.note;
 
-    switch (item.status) {
-      case 'approved':
-        return {
-          key: item.key,
-          ready: true,
-          text: ensureSentence(
-            `${docName} approved${versionLabel}${note ? ` — ${note}` : ''}`
-          ),
-        };
-      case 'generated':
-        return {
-          key: item.key,
-          ready: true,
-          text: ensureSentence(
-            `${docName} generated${versionLabel}${note ? ` — ${note}` : ''}`
-          ),
-        };
-      case 'draft':
-        return {
-          key: item.key,
-          ready: false,
-          text: ensureSentence(`${docName} still in draft — approve before submission`),
-        };
-      case 'rejected':
-        return {
-          key: item.key,
-          ready: false,
-          text: ensureSentence(`${docName} rejected — upload a corrected version`),
-        };
-      default:
-        return {
-          key: item.key,
-          ready: ['generated', 'approved'].includes(item.status),
-          text: ensureSentence(missingDocCopy(item.key, shipment, item.reason)),
-        };
-    }
-  });
+      switch (item.status) {
+        case 'approved':
+          return {
+            key: item.key,
+            ready: true,
+            text: ensureSentence(
+              `${docName} approved${versionLabel}${note ? ` — ${note}` : ''}`
+            ),
+          };
+        case 'generated':
+          return {
+            key: item.key,
+            ready: true,
+            text: ensureSentence(
+              `${docName} generated${versionLabel}${note ? ` — ${note}` : ''}`
+            ),
+          };
+        case 'draft':
+          return {
+            key: item.key,
+            ready: false,
+            text: ensureSentence(`${docName} still in draft — approve before submission`),
+          };
+        case 'rejected':
+          return {
+            key: item.key,
+            ready: false,
+            text: ensureSentence(`${docName} rejected — upload a corrected version`),
+          };
+        default:
+          return {
+            key: item.key,
+            ready: ['generated', 'approved'].includes(item.status),
+            text: ensureSentence(missingDocCopy(item.key, shipment, item.reason)),
+          };
+      }
+    });
+  }, [documentChecklist, shipment]);
 
   const missingDocSummaries = documentStatusSummaries.filter(summary => !summary.ready);
   const readyDocSummaries = documentStatusSummaries.filter(summary => summary.ready);
+
+  const packDocuments = useMemo<SubmissionPackDocumentSummary[]>(() => {
+    return documentChecklist.map(item => {
+      const doc = item.doc;
+      const versions = doc?.versions ?? [];
+      const currentVersion = doc?.current_version
+        ? versions.find(version => version.version === doc.current_version) ?? null
+        : versions[versions.length - 1] ?? null;
+      const summary = documentStatusSummaries.find(summaryItem => summaryItem.key === item.key);
+      const versionLabel = currentVersion?.version ? `v${currentVersion.version}` : undefined;
+      const summaryText = summary?.text?.replace(/\.$/, '') ?? undefined;
+      const note = currentVersion?.note?.trim()
+        ? currentVersion.note.trim()
+        : summaryText && summaryText !== getDocumentLabel(item.key)
+          ? summaryText
+          : undefined;
+
+      return {
+        key: item.key,
+        label: getDocumentLabel(item.key),
+        versionLabel,
+        statusLabel: docStatusLabel(item.status),
+        note,
+      } satisfies SubmissionPackDocumentSummary;
+    });
+  }, [documentChecklist, documentStatusSummaries]);
 
   let documentsDetail: string | undefined;
   if (isLoadingDocuments) {
@@ -540,11 +550,29 @@ export const ShipmentDetailPage = () => {
     issuesStatus,
     costsStatus,
   ];
+  const readinessHighlights = useMemo(() => {
+    const highlights: string[] = [];
+    readyDocSummaries.forEach(summary => {
+      const cleaned = summary.text.replace(/\.$/, '');
+      if (cleaned) {
+        highlights.push(cleaned);
+      }
+    });
+    const issuesHighlight = typeof issuesStatus.detail === 'string' ? issuesStatus.detail : undefined;
+    if (issuesHighlight && !issuesHighlight.toLowerCase().includes('checking')) {
+      highlights.push(issuesHighlight.replace(/\.$/, ''));
+    }
+    const costsHighlight = typeof costsStatus.detail === 'string' ? costsStatus.detail : undefined;
+    if (costsHighlight && !costsHighlight.toLowerCase().includes('loading')) {
+      highlights.push(costsHighlight.replace(/\.$/, ''));
+    }
+    return highlights.filter(Boolean).slice(0, 5);
+  }, [readyDocSummaries, issuesStatus.detail, costsStatus.detail]);
   const isReadyForSubmission = readinessItems.every(item => item.status === 'ready');
-  const isSubmitted = shipment.status !== 'draft';
+  const isSubmitted = shipment ? shipment.status !== 'draft' : false;
 
   const fallbackUserName = currentUser?.name ?? seedUsers[0]?.name ?? 'Jam Ransom';
-  const submittedByName = isSubmitted
+  const submittedByName = shipment && isSubmitted
     ? shipment.submitted_by
       ? seedUsers.find(user => user.id === shipment.submitted_by)?.name ??
         (currentUser &&
@@ -553,9 +581,46 @@ export const ShipmentDetailPage = () => {
           : fallbackUserName)
       : fallbackUserName
     : undefined;
-  const submittedDateText = shipment.submitted_at
-    ? formatDate(shipment.submitted_at)
-    : formatDate(shipment.updated_at);
+  const submittedDateTimeText = shipment?.submitted_at
+    ? formatDateTimeWithTime(shipment.submitted_at)
+    : shipment
+      ? formatDateTimeWithTime(shipment.updated_at)
+      : formatDateTimeWithTime(new Date().toISOString());
+
+  const packHistory = useMemo<SubmissionPackSummaryType[]>(() => {
+    if (!shipment || !isSubmitted) return [];
+    const createdAt = shipment.submitted_at ?? shipment.updated_at;
+    const createdBy = submittedByName ?? fallbackUserName;
+    const helperLine = formatDateTimeWithTime(createdAt);
+    const primaryPack: SubmissionPackSummaryType = {
+      id: `${shipment.id}-pack-1`,
+      name: 'Submission Pack #1',
+      createdAt,
+      createdBy,
+      contents: packDocuments,
+      shareUrl: `https://demo.prolist.example/shipments/${shipment.id}/packs/1`,
+      helperLine,
+      isPrimary: true,
+    };
+
+    const previousDate = new Date(createdAt);
+    previousDate.setDate(previousDate.getDate() - 7);
+    const previousPack: SubmissionPackSummaryType = {
+      id: `${shipment.id}-pack-0`,
+      name: 'Submission Pack #0',
+      createdAt: previousDate.toISOString(),
+      createdBy,
+      contents: packDocuments.map((doc, index) => ({
+        ...doc,
+        note: doc.note ?? (index === 0 ? 'Earlier buyer copy archived' : undefined),
+      })),
+      shareUrl: `https://demo.prolist.example/shipments/${shipment.id}/packs/0`,
+      helperLine: formatDateTimeWithTime(previousDate.toISOString()),
+      isPrimary: false,
+    };
+
+    return [primaryPack, previousPack];
+  }, [shipment, isSubmitted, packDocuments, submittedByName, fallbackUserName]);
 
   const readyDocListForDialog = (readyDocSummaries.length > 0
     ? readyDocSummaries
@@ -573,16 +638,135 @@ export const ShipmentDetailPage = () => {
   const openSubmitDialog = () => setIsSubmitDialogOpen(true);
   const openReopenDialog = () => setIsReopenDialogOpen(true);
 
+  useEffect(() => {
+    setPacks(prev => {
+      if (packHistory.length === 0) {
+        return prev.length === 0 ? prev : [];
+      }
+
+      if (prev.length === 0) {
+        return packHistory;
+      }
+
+      if (packHistory[0]?.id !== prev[0]?.id) {
+        return packHistory;
+      }
+
+      return prev;
+    });
+  }, [packHistory]);
+
+  const primaryPack = packs.find(pack => pack.isPrimary) ?? packHistory.find(pack => pack.isPrimary) ?? null;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-8 w-64" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-96 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !shipment) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate('/shipments')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Shipments
+          </Button>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Shipment not found or failed to load. Please check the URL and try again.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const docsIncludedCount = primaryPack?.contents.length ?? packDocuments.length;
+
+  const handleDownloadPack = (pack?: SubmissionPackSummaryType | null) => {
+    const targetPack = pack ?? primaryPack;
+    if (!targetPack) {
+      toast.info('Submission pack will be available once submitted.');
+      return;
+    }
+    toast.success(`${targetPack.name} download started (demo).`);
+  };
+
+  const handleSharePack = (pack?: SubmissionPackSummaryType | null) => {
+    const targetPack = pack ?? primaryPack;
+    if (!targetPack) return;
+    setSharePack(targetPack);
+    setShareDialogOpen(true);
+  };
+
+  const handleDeletePack = (pack: SubmissionPackSummaryType) => {
+    setPacks(prev => prev.filter(item => item.id !== pack.id));
+    toast.success(`${pack.name} removed from Download Centre`);
+  };
+
+  const handleShareCopy = (_link: string) => {
+    toast.success('Link copied');
+  };
+
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {shipment.status === 'submitted' && (
         <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-700">Submitted</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Submitted on {submittedDateText}
-            {submittedByName ? ` by ${submittedByName}` : ''}.
-          </AlertDescription>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 rounded-full bg-white p-2 shadow-sm">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <AlertTitle className="text-green-800">Submitted</AlertTitle>
+                <AlertDescription className="text-green-700">
+                  Submitted on {submittedDateTimeText}
+                  {submittedByName ? ` by ${submittedByName}` : ''}.
+                </AlertDescription>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-green-300 bg-white text-green-700 shadow-sm hover:bg-green-100"
+                onClick={() => handleDownloadPack()}
+              >
+                <Download className="mr-2 h-4 w-4" /> Download submission pack
+              </Button>
+              <Button
+                size="sm"
+                variant="link"
+                className="text-green-700 hover:text-green-800"
+                onClick={() => handleSharePack()}
+              >
+                <Share2 className="mr-1 h-4 w-4" /> Share link
+              </Button>
+            </div>
+          </div>
         </Alert>
       )}
 
@@ -643,18 +827,34 @@ export const ShipmentDetailPage = () => {
         </div>
       </div>
 
-      <SubmissionReadinessCard
-        isReady={isReadyForSubmission}
-        items={readinessItems}
-        onSubmit={!isSubmitted ? openSubmitDialog : undefined}
-        isSubmitting={updateShipmentMutation.isPending}
-        isSubmitted={isSubmitted}
-        submittedAt={shipment.submitted_at}
-        submittedByName={submittedByName}
-        onReopen={shipment.status === 'submitted' ? openReopenDialog : undefined}
-        isReopening={shipment.status === 'submitted' ? updateShipmentMutation.isPending : false}
-        onDownloadPack={isSubmitted ? handleDownloadSubmissionPack : undefined}
-      />
+      {isSubmitted && primaryPack ? (
+        <SubmissionPackSummaryCard
+          pack={primaryPack}
+          submittedAtText={submittedDateTimeText}
+          submittedBy={submittedByName ?? fallbackUserName}
+          documentsCount={docsIncludedCount}
+          onDownload={() => handleDownloadPack(primaryPack)}
+          onViewDetails={() => setIsPackPreviewOpen(true)}
+          onOpenDownloadCentre={() => setIsDownloadCentreOpen(true)}
+          onShare={() => handleSharePack(primaryPack)}
+          helperLine={primaryPack.helperLine}
+          onReopen={shipment.status === 'submitted' ? openReopenDialog : undefined}
+          isReopening={shipment.status === 'submitted' ? updateShipmentMutation.isPending : false}
+        />
+      ) : (
+        <SubmissionReadinessCard
+          isReady={isReadyForSubmission}
+          items={readinessItems}
+          onSubmit={!isSubmitted ? openSubmitDialog : undefined}
+          isSubmitting={updateShipmentMutation.isPending}
+          isSubmitted={isSubmitted}
+          submittedAt={shipment.submitted_at}
+          submittedByName={submittedByName}
+          onReopen={shipment.status === 'submitted' ? openReopenDialog : undefined}
+          isReopening={shipment.status === 'submitted' ? updateShipmentMutation.isPending : false}
+          onDownloadPack={isSubmitted ? handleDownloadSubmissionPack : undefined}
+        />
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -822,7 +1022,7 @@ export const ShipmentDetailPage = () => {
                       <div key={item.key} className="flex items-center justify-between rounded-xl border p-3">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-foreground">
-                            {documentNameMap[item.key] ?? item.key}
+                            {getDocumentLabel(item.key)}
                           </span>
                           {helperText && (
                             <span className="text-sm text-muted-foreground">{helperText}</span>
@@ -851,7 +1051,11 @@ export const ShipmentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="documents">
-          <DocumentsTab shipment={shipment} products={products} />
+          <DocumentsTab
+            shipment={shipment}
+            products={products}
+            onOpenDownloadCentre={() => setIsDownloadCentreOpen(true)}
+          />
         </TabsContent>
 
         <TabsContent value="issues">
@@ -928,5 +1132,65 @@ export const ShipmentDetailPage = () => {
         onProductCreated={handleAddAdHocProduct}
       />
     </div>
+
+    <DownloadCentreSheet
+      open={isDownloadCentreOpen}
+      onOpenChange={setIsDownloadCentreOpen}
+      packs={packs}
+      onDownload={pack => handleDownloadPack(pack)}
+      onShare={pack => handleSharePack(pack)}
+      onDelete={handleDeletePack}
+    />
+
+    <ShareSubmissionPackDialog
+      pack={sharePack}
+      open={shareDialogOpen}
+      onOpenChange={open => {
+        setShareDialogOpen(open);
+        if (!open) {
+          setSharePack(null);
+        }
+      }}
+      onCopy={handleShareCopy}
+    />
+
+    <Dialog open={isPackPreviewOpen} onOpenChange={setIsPackPreviewOpen}>
+      <DialogContent className="max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Submission pack preview</DialogTitle>
+          <DialogDescription>First page preview before downloading or sharing.</DialogDescription>
+        </DialogHeader>
+        {primaryPack ? (
+          <SubmissionPackPreview
+            packName={primaryPack.name}
+            shipmentReference={shipment.reference}
+            submittedAtText={submittedDateTimeText}
+            submittedBy={submittedByName ?? fallbackUserName}
+            route={shipment.route}
+            mode={shipment.mode}
+            incoterm={shipment.incoterm}
+            buyer={shipment.buyer}
+            readinessHighlights={readinessHighlights}
+            documents={primaryPack.contents}
+            helperLine={primaryPack.helperLine}
+          />
+        ) : (
+          <SubmissionPackPreview
+            packName="Submission Pack"
+            shipmentReference={shipment.reference}
+            submittedAtText={submittedDateTimeText}
+            submittedBy={submittedByName ?? fallbackUserName}
+            route={shipment.route}
+            mode={shipment.mode}
+            incoterm={shipment.incoterm}
+            buyer={shipment.buyer}
+            readinessHighlights={readinessHighlights}
+            documents={packDocuments}
+            helperLine={packHistory[0]?.helperLine}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  </>
   );
 };
