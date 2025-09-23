@@ -68,33 +68,43 @@ export interface ComplianceDocumentVersion {
 
 export interface PhytoProductLine {
   id: string;
-  description: string;
-  hsCode: string;
-  quantity: string;
-  weightKg: string;
-  treatment?: string;
+  botanicalName: string;
+  commonName: string;
+  hsCode?: string;
+  quantityValue: string;
+  quantityUnit: string;
+  packaging: string;
 }
 
 export interface PhytoFormValues {
   exporterName: string;
   exporterAddress: string;
+  exporterCountry: string;
   consigneeName: string;
   consigneeAddress: string;
   consigneeCountry: string;
-  products: PhytoProductLine[];
+  contactEmail: string;
+  contactPhone: string;
   originCountry: string;
-  originPort: string;
   destinationCountry: string;
-  destinationPort: string;
+  mode: "SEA" | "AIR" | "ROAD";
+  portOfLoading: string;
+  portOfDischarge: string;
+  departureDate?: string;
+  products: PhytoProductLine[];
+  treatment: {
+    applied: boolean;
+    type?: string;
+    date?: string;
+    chemical?: string;
+    duration?: string;
+    temperature?: string;
+    notes?: string;
+  };
+  placeOfInspection: string;
   inspectionDate?: string;
   inspectorName?: string;
-  declarations: {
-    treatmentApplied: boolean;
-    freeFromPests: boolean;
-    conformsToRegulations: boolean;
-    additionalNotes?: string;
-  };
-  notes?: string;
+  additionalDeclarations?: string;
 }
 
 export interface CooFormValues {
@@ -347,32 +357,42 @@ const initialDocuments: ComplianceDocument[] = [
     form: {
       exporterName: "ProList Manufacturing Ltd",
       exporterAddress: "Mile 3 Nkwen, Bamenda, Cameroon",
+      exporterCountry: "Cameroon",
       consigneeName: "EuroFoods SARL",
       consigneeAddress: "12 Rue de la République, Lyon",
       consigneeCountry: "France",
+      contactEmail: "export.ops@prolist.example",
+      contactPhone: "+237 655 000 111",
+      originCountry: "Cameroon",
+      destinationCountry: "France",
+      mode: "SEA",
+      portOfLoading: "Douala Port",
+      portOfDischarge: "Le Havre",
+      departureDate: "2025-09-21",
       products: [
         {
           id: "prod_phyto_1",
-          description: "Cocoa beans, whole",
+          botanicalName: "Theobroma cacao",
+          commonName: "Cocoa beans",
           hsCode: "180100",
-          quantity: "200 bags",
-          weightKg: "5000",
-          treatment: "Fumigated with phosphine",
+          quantityValue: "5000",
+          quantityUnit: "kg",
+          packaging: "200 bags × 25kg",
         },
       ],
-      originCountry: "Cameroon",
-      originPort: "Douala",
-      destinationCountry: "France",
-      destinationPort: "Le Havre",
+      treatment: {
+        applied: true,
+        type: "Fumigation",
+        date: "2025-09-12",
+        chemical: "Phosphine",
+        duration: "48h exposure",
+        temperature: "25°C",
+        notes: "Ventilated 24h before inspection.",
+      },
+      placeOfInspection: "Douala Export Warehouse",
       inspectionDate: "2025-09-16",
       inspectorName: "Inspection team TBD",
-      declarations: {
-        treatmentApplied: true,
-        freeFromPests: false,
-        conformsToRegulations: true,
-        additionalNotes: "Awaiting fumigation certificate upload.",
-      },
-      notes: "Use Latin characters as shown on invoice.",
+      additionalDeclarations: "Shipment free from quarantine pests.",
     },
   },
   {
@@ -567,30 +587,41 @@ const initialDocuments: ComplianceDocument[] = [
     form: {
       exporterName: "ProList Manufacturing Ltd",
       exporterAddress: "Mile 3 Nkwen, Bamenda, Cameroon",
+      exporterCountry: "Cameroon",
       consigneeName: "Nordic Trade AB",
       consigneeAddress: "Storgatan 15, Stockholm",
       consigneeCountry: "Sweden",
+      contactEmail: "export.ops@prolist.example",
+      contactPhone: "+237 655 000 111",
+      originCountry: "Cameroon",
+      destinationCountry: "Sweden",
+      mode: "AIR",
+      portOfLoading: "Douala International",
+      portOfDischarge: "Stockholm Arlanda",
+      departureDate: "2025-09-18",
       products: [
         {
           id: "prod_phyto2_1",
-          description: "Green coffee beans",
+          botanicalName: "Coffea arabica",
+          commonName: "Green coffee beans",
           hsCode: "090111",
-          quantity: "50 bags",
-          weightKg: "3000",
+          quantityValue: "3000",
+          quantityUnit: "kg",
+          packaging: "50 bags × 60kg",
         },
       ],
-      originCountry: "Cameroon",
-      originPort: "Douala",
-      destinationCountry: "Sweden",
-      destinationPort: "Stockholm Arlanda",
+      treatment: {
+        applied: true,
+        type: "Heat treatment",
+        date: "2025-09-13",
+        duration: "30 min at 60°C",
+        temperature: "60°C",
+        notes: "Performed per EU coffee protocol.",
+      },
+      placeOfInspection: "Douala Air Cargo Terminal",
       inspectionDate: "2025-09-15",
       inspectorName: "To be assigned",
-      declarations: {
-        treatmentApplied: true,
-        freeFromPests: true,
-        conformsToRegulations: true,
-      },
-      notes: "Awaiting inspector confirmation.",
+      additionalDeclarations: "Botanical name helps authorities verify species.",
     },
   },
   {
@@ -773,30 +804,41 @@ const initialDocuments: ComplianceDocument[] = [
     form: {
       exporterName: "ProList Manufacturing Ltd",
       exporterAddress: "Mile 3 Nkwen, Bamenda, Cameroon",
+      exporterCountry: "Cameroon",
       consigneeName: "Mediterraneo SpA",
       consigneeAddress: "Via Roma 42, Milano",
       consigneeCountry: "Italy",
+      contactEmail: "export.ops@prolist.example",
+      contactPhone: "+237 655 000 111",
+      originCountry: "Cameroon",
+      destinationCountry: "Italy",
+      mode: "SEA",
+      portOfLoading: "Douala Port",
+      portOfDischarge: "Port of Genoa",
+      departureDate: "2025-09-22",
       products: [
         {
           id: "prod_phyto3_1",
-          description: "Sawn timber",
+          botanicalName: "Milicia excelsa",
+          commonName: "Sawn timber",
           hsCode: "440710",
-          quantity: "25 crates",
-          weightKg: "18000",
+          quantityValue: "18",
+          quantityUnit: "tonne",
+          packaging: "25 crates strapped",
         },
       ],
-      originCountry: "Cameroon",
-      originPort: "Douala",
-      destinationCountry: "Italy",
-      destinationPort: "Genoa",
+      treatment: {
+        applied: true,
+        type: "Kiln drying",
+        date: "2025-09-02",
+        duration: "72h cycle",
+        temperature: "56°C core",
+        notes: "Kiln certificate attached in evidence.",
+      },
+      placeOfInspection: "Douala Forestry Inspection Yard",
       inspectionDate: "2025-09-04",
       inspectorName: "Luca Romano",
-      declarations: {
-        treatmentApplied: true,
-        freeFromPests: true,
-        conformsToRegulations: true,
-      },
-      notes: "Signed copy stored under evidence.",
+      additionalDeclarations: "Kiln dried prior to export.",
     },
   },
   {
@@ -997,31 +1039,42 @@ const initialDocuments: ComplianceDocument[] = [
     form: {
       exporterName: "ProList Manufacturing Ltd",
       exporterAddress: "Mile 3 Nkwen, Bamenda, Cameroon",
+      exporterCountry: "Cameroon",
       consigneeName: "Atlantic Imports Ltd",
       consigneeAddress: "25 King Street, London",
       consigneeCountry: "United Kingdom",
+      contactEmail: "export.ops@prolist.example",
+      contactPhone: "+237 655 000 111",
+      originCountry: "Cameroon",
+      destinationCountry: "United Kingdom",
+      mode: "SEA",
+      portOfLoading: "Douala Port",
+      portOfDischarge: "Port of Felixstowe",
+      departureDate: "2025-09-24",
       products: [
         {
           id: "prod_phyto4_1",
-          description: "Cocoa butter",
+          botanicalName: "Theobroma cacao",
+          commonName: "Cocoa butter",
           hsCode: "180400",
-          quantity: "120 drums",
-          weightKg: "7200",
+          quantityValue: "7200",
+          quantityUnit: "kg",
+          packaging: "120 drums × 60kg",
         },
       ],
-      originCountry: "Cameroon",
-      originPort: "Douala",
-      destinationCountry: "United Kingdom",
-      destinationPort: "Felixstowe",
+      treatment: {
+        applied: true,
+        type: "Fumigation",
+        date: "2025-09-10",
+        chemical: "Phosphine",
+        duration: "48h exposure",
+        temperature: "24°C warehouse",
+        notes: "Update HS description to match invoice.",
+      },
+      placeOfInspection: "Douala Export Warehouse",
       inspectionDate: "2025-09-12",
       inspectorName: "Inspector TBD",
-      declarations: {
-        treatmentApplied: true,
-        freeFromPests: false,
-        conformsToRegulations: true,
-        additionalNotes: "Update HS code to 180400 consistent with invoice.",
-      },
-      notes: "Highlight mismatch in description.",
+      additionalDeclarations: "HS description to be aligned before resubmitting.",
     },
   },
   {
@@ -1138,30 +1191,42 @@ const initialDocuments: ComplianceDocument[] = [
     form: {
       exporterName: "ProList Manufacturing Ltd",
       exporterAddress: "Mile 3 Nkwen, Bamenda, Cameroon",
+      exporterCountry: "Cameroon",
       consigneeName: "German Trading GmbH",
       consigneeAddress: "Hauptstraße 123, Berlin",
       consigneeCountry: "Germany",
+      contactEmail: "export.ops@prolist.example",
+      contactPhone: "+237 655 000 111",
+      originCountry: "Cameroon",
+      destinationCountry: "Germany",
+      mode: "AIR",
+      portOfLoading: "Douala International",
+      portOfDischarge: "Frankfurt Main",
+      departureDate: "2025-09-19",
       products: [
         {
           id: "prod_phyto5_1",
-          description: "Green coffee",
+          botanicalName: "Coffea canephora",
+          commonName: "Green coffee",
           hsCode: "090111",
-          quantity: "80 bags",
-          weightKg: "4800",
+          quantityValue: "4800",
+          quantityUnit: "kg",
+          packaging: "80 bags × 60kg",
         },
       ],
-      originCountry: "Cameroon",
-      originPort: "Douala",
-      destinationCountry: "Germany",
-      destinationPort: "Frankfurt",
+      treatment: {
+        applied: true,
+        type: "Fumigation",
+        date: "2025-09-14",
+        chemical: "Phosphine",
+        duration: "48h exposure",
+        temperature: "22°C warehouse",
+        notes: "All checks passed. You're ready to submit.",
+      },
+      placeOfInspection: "Douala Export Warehouse",
       inspectionDate: "2025-09-16",
       inspectorName: "Assigned",
-      declarations: {
-        treatmentApplied: true,
-        freeFromPests: true,
-        conformsToRegulations: true,
-      },
-      notes: "All checks passed. You're ready to submit.",
+      additionalDeclarations: "Inspection date required before submission.",
     },
   },
   {
