@@ -148,13 +148,13 @@ export const AppShell = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="h-14 flex items-center justify-between px-4 border-b border-border bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center gap-4">
+          <header className="h-14 flex flex-wrap items-center justify-between gap-3 px-3 sm:flex-nowrap sm:gap-4 sm:px-4 border-b border-border bg-background/95 backdrop-blur-sm">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <SidebarTrigger />
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 {orgSettings?.logoDataUrl && (
                   <img
                     src={orgSettings.logoDataUrl}
@@ -162,7 +162,7 @@ export const AppShell = () => {
                     className="h-8 w-8 rounded-xl object-contain"
                   />
                 )}
-                <span className="max-w-[200px] truncate text-lg font-semibold text-foreground">
+                <span className="max-w-[140px] truncate text-base font-semibold text-foreground sm:max-w-[200px] sm:text-lg">
                   {orgSettings?.name ?? 'ProList'}
                 </span>
               </div>
@@ -181,7 +181,7 @@ export const AppShell = () => {
             </div>
 
             {/* User Menu */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <ThemeToggle className="bg-background/90" />
               <NotificationsBell />
               <DropdownMenu>
@@ -227,7 +227,7 @@ export const AppShell = () => {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-4 sm:p-6">
             <Outlet />
           </main>
         </div>

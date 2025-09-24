@@ -208,20 +208,20 @@ All colors MUST be HSL. Brand palette: primary(#048ABF), blue(#049DBF), teal(#03
 
   /* Enhanced typography */
   .text-display {
-    @apply text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight;
+    @apply text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight;
   }
 
   .text-headline {
-    @apply text-3xl lg:text-4xl font-bold tracking-tight;
+    @apply text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight;
   }
 
   .text-subheadline {
-    @apply text-xl lg:text-2xl font-semibold;
+    @apply text-lg sm:text-xl lg:text-2xl font-semibold;
   }
 
   /* Professional section styling */
   .section-professional {
-    @apply py-20 lg:py-28;
+    @apply py-16 md:py-20 lg:py-28;
   }
 
   .section-alt {

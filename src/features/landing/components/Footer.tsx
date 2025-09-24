@@ -33,15 +33,15 @@ export const Footer = () => {
   return (
     <footer className="bg-muted/30 border-t border-border">
       <div className="container mx-auto px-4">
-        <div className="py-16">
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div className="py-12 md:py-16">
+          <div className="grid gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-5">
             {/* Brand */}
-            <div className="lg:col-span-2">
-              <Link to="/" className="inline-flex items-center mb-4">
+            <div className="text-center sm:text-left lg:col-span-2">
+              <Link to="/" className="mb-4 inline-flex items-center justify-center sm:justify-start">
                 <span className="text-xl font-bold text-primary">ProList</span>
               </Link>
-              <p className="text-muted-foreground mb-4 max-w-md">
-                Automated export compliance for modern businesses. 
+              <p className="mx-auto mb-4 max-w-md text-muted-foreground sm:mx-0">
+                Automated export compliance for modern businesses.
                 Generate documents, ensure compliance, stay audit-ready.
               </p>
               <p className="text-sm text-muted-foreground">
@@ -51,8 +51,8 @@ export const Footer = () => {
 
             {/* Links */}
             {footerLinks.map((section) => (
-              <div key={section.title}>
-                <h3 className="font-semibold text-foreground mb-4">
+              <div key={section.title} className="text-center sm:text-left">
+                <h3 className="mb-4 font-semibold text-foreground">
                   {section.title}
                 </h3>
                 <ul className="space-y-3">

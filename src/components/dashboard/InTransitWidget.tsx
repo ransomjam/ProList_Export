@@ -102,7 +102,7 @@ export const InTransitWidget = ({ shipments, loading, error }: InTransitWidgetPr
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <CardHeader className="flex flex-col items-start gap-2 space-y-0 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-lg font-semibold text-foreground">In transit</CardTitle>
         <Button variant="link" size="sm" className="px-0 text-sm" asChild>
           <Link to="/shipments?tab=tracking" className="inline-flex items-center gap-1 text-primary">
@@ -114,7 +114,7 @@ export const InTransitWidget = ({ shipments, loading, error }: InTransitWidgetPr
       <CardContent className="space-y-5">
         {loading ? (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 rounded-xl" />
               ))}
@@ -131,7 +131,7 @@ export const InTransitWidget = ({ shipments, loading, error }: InTransitWidgetPr
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-muted bg-muted/40 p-3">
                 <p className="text-xs font-medium uppercase text-muted-foreground">Shipments</p>
                 <p className="mt-1 text-xl font-semibold text-foreground">{shipmentCount}</p>
@@ -165,7 +165,7 @@ export const InTransitWidget = ({ shipments, loading, error }: InTransitWidgetPr
                         {shipment?.route || 'Route pending'}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <p className="text-sm font-semibold text-foreground">{etaLabel}</p>
                       <p className="text-xs text-muted-foreground">{profile.eta.variance}</p>
                     </div>
