@@ -20,14 +20,14 @@ export const FinalCTA = () => {
           <h2 className="text-headline mb-6">
             Start your free demo — no setup required
           </h2>
-          <p className="text-xl lg:text-2xl opacity-95 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Experience the power of automated export compliance. 
+          <p className="mx-auto mb-10 max-w-3xl text-lg leading-relaxed opacity-95 sm:mb-12 sm:text-xl lg:text-2xl">
+            Experience the power of automated export compliance.
             Create your first shipment and generate documents in minutes.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-            <Button 
-              size="lg" 
+          <div className="mb-12 flex flex-col justify-center gap-4 sm:mb-16 sm:flex-row sm:gap-6">
+            <Button
+              size="lg"
               variant="secondary"
               className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-base font-semibold shadow-prominent hover:shadow-hero"
               asChild
@@ -47,7 +47,7 @@ export const FinalCTA = () => {
             </Button>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl mx-auto">
+          <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
             {benefits.map((benefit) => (
               <div key={benefit} className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-accent-mint flex-shrink-0" />
